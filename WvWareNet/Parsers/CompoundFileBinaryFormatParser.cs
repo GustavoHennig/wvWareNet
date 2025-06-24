@@ -6,6 +6,17 @@ namespace WvWareNet.Parsers;
 public class CompoundFileBinaryFormatParser
 {
     private readonly BinaryReader _reader;
+    private uint[] _fat;
+    private uint _sectorSize;
+    private uint _fatSectorCount;
+    private uint _firstFatSectorLocation;
+
+    // Constants
+    private const uint EndOfChain = 0xFFFFFFFE;
+    private const uint FatSector = 0xFFFFFFFD;
+    private const uint DifatSector = 0xFFFFFFFC;
+    private const uint FreeSector = 0xFFFFFFFF;
+    private const uint SectorSize = 512; // Default sector size
 
     public CompoundFileBinaryFormatParser(Stream stream)
     {
@@ -30,16 +41,17 @@ public class CompoundFileBinaryFormatParser
         ushort miniSectorShift = _reader.ReadUInt16();
         _reader.ReadBytes(6); // Reserved
         uint directorySectorCount = _reader.ReadUInt32();
-        uint fatSectorCount = _reader.ReadUInt32();
+        _fatSectorCount = _reader.ReadUInt32();
         uint firstDirectorySectorLocation = _reader.ReadUInt32();
         uint transactionSignatureNumber = _reader.ReadUInt32();
         uint miniStreamCutoffSize = _reader.ReadUInt32();
         uint firstMiniFatSectorLocation = _reader.ReadUInt32();
         uint miniFatSectorCount = _reader.ReadUInt32();
-        uint firstDifatSectorLocation = _reader.ReadUInt32();
+        _firstFatSectorLocation = _reader.ReadUInt32();
         uint difatSectorCount = _reader.ReadUInt32();
 
-        // TODO: Process header information and initialize parser state
+        // Calculate sector size based on sector shift
+        _sectorSize = (uint)(1 << sectorShift);
     }
 
     private bool IsValidSignature(byte[] signature)
@@ -99,16 +111,14 @@ public class CompoundFileBinaryFormatParser
 
     public byte[] ReadStream(DirectoryEntry entry)
     {
-        // NOTE: This is a simplified implementation for standard streams only.
-        // In a full implementation, FAT and sector size would be tracked from the header.
-        const int sectorSize = 512; // Typical for CFBF, but should be read from header
         List<uint> sectorChain = GetFatChain(entry.StartingSectorLocation);
         using var ms = new MemoryStream();
         foreach (uint sector in sectorChain)
         {
-            long sectorOffset = (sector + 1) * sectorSize; // +1 to skip header
+            // Calculate sector position: header (512 bytes) + sector * sector size
+            long sectorOffset = 512 + (sector * _sectorSize);
             _reader.BaseStream.Seek(sectorOffset, SeekOrigin.Begin);
-            byte[] data = _reader.ReadBytes(sectorSize);
+            byte[] data = _reader.ReadBytes((int)_sectorSize);
             ms.Write(data, 0, data.Length);
         }
         // Truncate to actual stream size
@@ -117,9 +127,63 @@ public class CompoundFileBinaryFormatParser
 
     public List<uint> GetFatChain(uint startSector)
     {
-        // NOTE: This is a simplified placeholder. In a full implementation,
-        // the FAT should be read from the file and stored in a field.
-        // Here, we simulate a single-sector stream for demonstration.
-        return new List<uint> { startSector };
+        var chain = new List<uint>();
+        uint current = startSector;
+        const uint EndOfChain = 0xFFFFFFFE;
+
+        // Read FAT from header or cache
+        if (_fat == null)
+        {
+            ReadFatTable();
+        }
+
+        while (current != EndOfChain)
+        {
+            if (current >= _fat.Length)
+            {
+                throw new InvalidDataException($"Invalid FAT index: {current}");
+            }
+            
+            chain.Add(current);
+            current = _fat[current];
+        }
+        return chain;
+    }
+
+    private void ReadFatTable()
+    {
+        if (_fat != null) return;
+
+        // Calculate number of entries per sector
+        uint entriesPerSector = _sectorSize / sizeof(uint);
+        uint totalEntries = entriesPerSector * _fatSectorCount;
+        _fat = new uint[totalEntries];
+        
+        uint currentSector = _firstFatSectorLocation;
+        int fatIndex = 0;
+        
+        for (int i = 0; i < _fatSectorCount; i++)
+        {
+            // Calculate sector position (sectors start after header)
+            long position = (currentSector + 1) * _sectorSize;
+            _reader.BaseStream.Seek(position, SeekOrigin.Begin);
+            
+            // Read all entries in this FAT sector
+            for (int j = 0; j < entriesPerSector; j++)
+            {
+                _fat[fatIndex++] = _reader.ReadUInt32();
+            }
+            
+            // Get next FAT sector from the chain
+            if (currentSector >= _fat.Length)
+            {
+                throw new InvalidDataException($"Invalid FAT index: {currentSector}");
+            }
+            currentSector = _fat[currentSector];
+            
+            // Check for end of chain
+            if (currentSector == EndOfChain || currentSector == FreeSector) 
+                break;
+        }
     }
 }

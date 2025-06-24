@@ -42,29 +42,27 @@ vwWare-toDotNet.sln
     └── obj/
 ```
 
-## Phase 3: File Parsing Progress
+## Phase 3: File Parsing Progress (Completed)
 
-- [x] CFBF reader scaffolding
+- [x] CFBF reader with FAT chain traversal and sector reading
 - [x] Directory entry parsing implemented
-- [x] Stream reading logic
-- [x] FAT chain traversal
+- [x] Stream reading logic (using FAT chain and sector size)
 - [x] Document parsing scaffold
-- [x] Text extraction logic
+- [x] Text extraction logic (basic)
 - [x] Document model structure
 
 ## Next Steps
 
-1. Complete CFBF reader prototype
-2. Create basic document parsing scaffold
-3. Initialize text extraction logic
-4. Implement document model structure
+1. Phase 4: Document Model
+   - Enhance in-memory document representation
+   - Implement text run extraction with formatting
+   - Handle document structure navigation (sections, paragraphs, runs)
 
 ## Immediate Tasks
 
-- Complete CFBF reader implementation
-- Build document parsing scaffold
-- Implement basic text extraction
-- Create document model class
+- Enhance DocumentModel to support sections and runs with formatting
+- Improve text extraction to handle special characters and formatting
+- Implement navigation of document structure (headers, footers, footnotes)
 ## Legacy Port Tracking
 
 This table tracks original `wvWare` C files, useful for reference in C# port. All logic is to be rewritten idiomatically.
