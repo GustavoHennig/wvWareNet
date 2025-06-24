@@ -46,16 +46,38 @@ namespace WvWareNet.Parsers
             var pieceTable = new WvWareNet.Core.PieceTable(logger);
             pieceTable.Parse(clxData);
 
-            // Extract text using PieceTable
+            // Extract text using PieceTable and populate DocumentModel with sections and paragraphs
             _documentModel = new WvWareNet.Core.DocumentModel();
+            _documentModel.FileInfo = fib; // Store FIB in the document model
+
+            // For now, create a single default section.
+            // In a more complete implementation, sections would be parsed from the document structure.
+            var defaultSection = new WvWareNet.Core.Section();
+            _documentModel.Sections.Add(defaultSection);
+
             using var wordDocMs = new System.IO.MemoryStream(wordDocStream);
+            var currentParagraph = new WvWareNet.Core.Paragraph();
+            defaultSection.Paragraphs.Add(currentParagraph);
+
             for (int i = 0; i < pieceTable.Pieces.Count; i++)
             {
                 string text = pieceTable.GetTextForPiece(i, wordDocMs);
                 var run = new WvWareNet.Core.Run { Text = text };
-                var para = new WvWareNet.Core.Paragraph();
-                para.Runs.Add(run);
-                _documentModel.Paragraphs.Add(para);
+                currentParagraph.Runs.Add(run);
+
+                // Simple heuristic for new paragraphs: if a piece ends with a newline, start a new paragraph.
+                // This is a placeholder and needs proper paragraph boundary detection from Word's binary format.
+                if (text.EndsWith("\r\n") || text.EndsWith("\n") || text.EndsWith("\r"))
+                {
+                    currentParagraph = new WvWareNet.Core.Paragraph();
+                    defaultSection.Paragraphs.Add(currentParagraph);
+                }
+            }
+
+            // Remove the last empty paragraph if it was created due to a trailing newline
+            if (currentParagraph.Runs.Count == 0 && defaultSection.Paragraphs.Count > 1)
+            {
+                defaultSection.Paragraphs.RemoveAt(defaultSection.Paragraphs.Count - 1);
             }
         }
 
@@ -64,16 +86,28 @@ namespace WvWareNet.Parsers
             if (_documentModel == null)
                 throw new InvalidOperationException("Document not parsed. Call ParseDocument() first.");
 
-            var text = new System.Text.StringBuilder();
-            foreach (var para in _documentModel.Paragraphs)
+            var textBuilder = new System.Text.StringBuilder();
+
+            foreach (var section in _documentModel.Sections)
             {
-                foreach (var run in para.Runs)
+                // Optionally add section breaks or properties here
+                // textBuilder.AppendLine("--- SECTION ---"); 
+
+                foreach (var paragraph in section.Paragraphs)
                 {
-                    text.Append(run.Text);
+                    foreach (var run in paragraph.Runs)
+                    {
+                        textBuilder.Append(run.Text);
+                    }
+                    // Add a newline after each paragraph, unless it's the last run already contains one
+                    if (paragraph.Runs.Count > 0 && !string.IsNullOrEmpty(paragraph.Runs[^1].Text) && 
+                        !(paragraph.Runs[^1].Text.EndsWith("\r\n") || paragraph.Runs[^1].Text.EndsWith("\n") || paragraph.Runs[^1].Text.EndsWith("\r")))
+                    {
+                        textBuilder.AppendLine();
+                    }
                 }
-                text.AppendLine();
             }
-            return text.ToString();
+            return textBuilder.ToString();
         }
     }
 }

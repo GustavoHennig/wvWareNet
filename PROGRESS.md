@@ -4,7 +4,7 @@
 
 - Project direction changed: Full C# rewrite initiated
 - README.md updated to reflect new goals
-- Detailed rewrite plan created in REWRITE\_PLAN.md
+- Detailed rewrite plan created in REWRITE_PLAN.md
 - .NET 9 solution and project structure created
 - Coding standards established
 
@@ -53,8 +53,22 @@ vwWare-toDotNet.sln
 
 ## Phase 4: Document Model (Completed)
 
-- Enhanced in-memory document representation to support sections, runs with formatting, headers, footers, and footnotes
-- Implemented SectionProperties class to handle section-level properties
+- [x] Enhanced in-memory document representation to support sections, runs with formatting, headers, footers, and footnotes
+- [x] Implemented SectionProperties class to handle section-level properties
+
+## Phase 5: Text Extraction (Completed)
+
+- [x] Implement text decoding logic
+- [x] Handle character encoding conversions
+- [x] Process piece tables to extract text
+- [x] Build plain text output mechanism
+
+## Phase 6: API and Integration — 🚧 In Progress
+
+- [x] Create `WvDocExtractor` public interface
+- [x] Implement `ExtractText()` method
+- [x] Handle edge cases and error conditions (basic)
+- [x] Built basic console test application (in `WvWareNetConsole` project)
 
 ## Next Steps
 
