@@ -248,11 +248,25 @@ namespace WvWareNet.Parsers
                 {
                     int cp = plcfReader.ReadInt32();
                     int fc = plcfReader.ReadInt32();
-                    // For demonstration, just create a header/footer with the FC as a placeholder
+
+                    // Extract header/footer text from WordDocument stream at FC
+                    string headerText = "";
+                    if (fc > 0 && fc < wordDocStream.Length)
+                    {
+                        using var ms = new System.IO.MemoryStream(wordDocStream);
+                        ms.Position = fc;
+                        using var reader = new System.IO.BinaryReader(ms);
+                        // Read up to 512 bytes or until null terminator (simple heuristic)
+                        var bytes = reader.ReadBytes(512);
+                        int len = Array.IndexOf(bytes, (byte)0);
+                        if (len < 0) len = bytes.Length;
+                        headerText = System.Text.Encoding.Default.GetString(bytes, 0, len);
+                    }
+
                     _documentModel.Headers.Add(new WvWareNet.Core.HeaderFooter
                     {
                         Type = WvWareNet.Core.HeaderFooterType.Default,
-                        Paragraphs = { new WvWareNet.Core.Paragraph { Runs = { new WvWareNet.Core.Run { Text = $"Header/Footer at FC {fc}" } } } }
+                        Paragraphs = { new WvWareNet.Core.Paragraph { Runs = { new WvWareNet.Core.Run { Text = headerText } } } }
                     });
                 }
             }
@@ -275,10 +289,25 @@ namespace WvWareNet.Parsers
                 {
                     int cp = plcfReader.ReadInt32();
                     int fc = plcfReader.ReadInt32();
+
+                    // Extract footnote text from WordDocument stream at FC
+                    string footnoteText = "";
+                    if (fc > 0 && fc < wordDocStream.Length)
+                    {
+                        using var ms = new System.IO.MemoryStream(wordDocStream);
+                        ms.Position = fc;
+                        using var reader = new System.IO.BinaryReader(ms);
+                        // Read up to 512 bytes or until null terminator (simple heuristic)
+                        var bytes = reader.ReadBytes(512);
+                        int len = Array.IndexOf(bytes, (byte)0);
+                        if (len < 0) len = bytes.Length;
+                        footnoteText = System.Text.Encoding.Default.GetString(bytes, 0, len);
+                    }
+
                     _documentModel.Footnotes.Add(new WvWareNet.Core.Footnote
                     {
                         ReferenceId = i + 1,
-                        Paragraphs = { new WvWareNet.Core.Paragraph { Runs = { new WvWareNet.Core.Run { Text = $"Footnote at FC {fc}" } } } }
+                        Paragraphs = { new WvWareNet.Core.Paragraph { Runs = { new WvWareNet.Core.Run { Text = footnoteText } } } }
                     });
                 }
             }
