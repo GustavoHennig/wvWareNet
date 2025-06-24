@@ -11,7 +11,11 @@
 ## Current Status
 
 - Phase 1 (Project Setup) completed
-- Phase 2 (Core Data Structures) in progress
+- Phase 2 (Core Data Structures) partially completed:
+  - FIB implemented
+  - CFBF parser prototype created
+  - Logging infrastructure set up
+  - Basic file stream handling implemented
 
 ### Solution Layout
 
@@ -19,28 +23,34 @@
 vwWare-toDotNet.sln
 └── WvWareNet/
     ├── WvWaveDotNet.csproj
-    ├── Class1.cs (placeholder)
+    ├── Core/
+    │   └── FileInformationBlock.cs
+    ├── Parsers/
+    │   └── CompoundFileBinaryFormatParser.cs
+    ├── Utilities/
+    │   ├── ILogger.cs
+    │   ├── ConsoleLogger.cs
+    │   └── FileStreamHandler.cs
     ├── bin/
     └── obj/
 ```
 
 ## Next Steps
 
-1. Implement core data structures (Phase 2):
-   - File Information Block (FIB)
+1. Complete core data structures (Phase 2):
    - Character Properties (CHP)
    - Paragraph Properties (PAP)
    - Piece Table structures
-2. Create CFBF reader prototype
-3. Set up basic document parsing scaffold
+2. Complete CFBF reader prototype
+3. Create basic document parsing scaffold
 4. Initialize text extraction logic
 
 ## Immediate Tasks
 
-- Create FIB structure implementation
-- Research .NET 9 features for binary parsing
-- Setup logging infrastructure
-- Create basic file stream handling
+- Implement Piece Table structures
+- Create CHP and PAP structures
+- Complete CFBF reader implementation
+- Build document parsing scaffold
 
 ## Legacy Port Tracking
 
@@ -51,7 +61,7 @@ This table tracks original `wvWare` C files, useful for reference in C# port. Al
 | wvWare.c       | [ ]    | Main logic entry point      |
 | wvTextEngine.c | [ ]    | Text extraction core        |
 | wvparse.c      | [ ]    | Parser logic                |
-| fib.c          | [ ]    | File Information Block      |
+| fib.c          | [x]    | File Information Block      |
 | plcf.c         | [ ]    | Piece table logic           |
 | text.c         | [ ]    | Text-related parsing        |
 | unicode.c      | [ ]    | Unicode helpers             |
