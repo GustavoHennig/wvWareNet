@@ -56,32 +56,37 @@ vwWare-toDotNet.sln
 - [x] Enhanced in-memory document representation to support sections, runs with formatting, headers, footers, and footnotes
 - [x] Implemented SectionProperties class to handle section-level properties
 
-## Phase 5: Text Extraction (Completed)
+## Phase 5: Text Extraction — 🚧 In Progress
 
 - [x] Implement text decoding logic
 - [x] Handle character encoding conversions
 - [x] Process piece tables to extract text
 - [x] Build plain text output mechanism
+- [ ] Parse and apply character formatting (CHPX/PLCFCHPX) to runs
+- [ ] Convert CHPX to CharacterProperties for each run
+- [ ] Parse and extract headers, footers, and footnotes
+- [ ] Output text with formatting and document structure
 
-## Phase 6: API and Integration — 🚧 In Progress
+## Phase 6: API and Integration — ⏸ Not Started
 
-- [x] Create `WvDocExtractor` public interface
-- [x] Implement `ExtractText()` method
-- [x] Handle edge cases and error conditions (basic)
-- [x] Built basic console test application (in `WvWareNetConsole` project)
+- [ ] Create `WvDocExtractor` public interface
+- [ ] Implement `ExtractText()` method
+- [ ] Handle edge cases and error conditions (basic)
+- [ ] Build basic console test application (in `WvWareNetConsole` project)
 
 ## Next Steps
 
 1. Phase 5: Text Extraction
-   - Implement text run extraction with formatting
-   - Improve text extraction to handle special characters and formatting
-   - Implement navigation of document structure (headers, footers, footnotes)
+   - Parse PLCFCHPX from Table stream and assign CHPX to each piece
+   - Convert CHPX to CharacterProperties for each run
+   - Parse and extract headers, footers, and footnotes
+   - Output text with formatting and document structure
 
 ## Immediate Tasks
 
-- Enhance DocumentModel to support sections and runs with formatting
-- Improve text extraction to handle special characters and formatting
-- Implement navigation of document structure (headers, footers, footnotes)
+- Implement PLCFCHPX parsing and CHPX mapping in PieceTable/WordDocumentParser
+- Implement CHPX to CharacterProperties conversion
+- Implement header/footer/footnote extraction and output
 ## Legacy Port Tracking
 
 This table tracks original `wvWare` C files, useful for reference in C# port. All logic is to be rewritten idiomatically.

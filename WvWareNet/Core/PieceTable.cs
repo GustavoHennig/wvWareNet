@@ -17,6 +17,19 @@ public class PieceTable
         _logger = logger;
     }
 
+    /// <summary>
+    /// Assigns CHPX (character formatting) data to each piece descriptor.
+    /// </summary>
+    public void AssignChpxToPieces(List<byte[]> chpxList)
+    {
+        // Assumes chpxList.Count == _pieces.Count or chpxList.Count == _pieces.Count - 1
+        int count = Math.Min(_pieces.Count, chpxList.Count);
+        for (int i = 0; i < count; i++)
+        {
+            _pieces[i].Chpx = chpxList[i];
+        }
+    }
+
     public void Parse(byte[] data)
     {
         _pieces.Clear();
@@ -33,14 +46,14 @@ public class PieceTable
 
             // Read the character position array
             uint cpCount = reader.ReadUInt32();
+            var cpArray = new int[cpCount];
             for (int i = 0; i < cpCount; i++)
             {
-                uint cp = reader.ReadUInt32();
-                // We'll store this information later when we process the pieces
+                cpArray[i] = reader.ReadInt32();
             }
 
-            // Read piece descriptors
-            while (stream.Position < stream.Length - 4)
+            // Read piece descriptors and assign cpStart/cpEnd
+            for (int i = 0; i < cpCount - 1; i++)
             {
                 var descriptor = new PieceDescriptor
                 {
@@ -52,6 +65,9 @@ public class PieceTable
                 descriptor.IsUnicode = (flags & 0x40) != 0;
                 descriptor.HasFormatting = (flags & 0x80) != 0;
                 descriptor.ReservedFlags = (byte)(flags & 0x3F); // Lower 6 bits are reserved
+
+                descriptor.CpStart = cpArray[i];
+                descriptor.CpEnd = cpArray[i + 1];
 
                 _pieces.Add(descriptor);
             }

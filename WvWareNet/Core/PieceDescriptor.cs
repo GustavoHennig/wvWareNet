@@ -21,4 +21,19 @@ public class PieceDescriptor
     /// Reserved bits from the original format
     /// </summary>
     public byte ReservedFlags { get; set; }
+
+    /// <summary>
+    /// The starting character position (cp) for this piece
+    /// </summary>
+    public int CpStart { get; set; }
+
+    /// <summary>
+    /// The ending character position (cp) for this piece
+    /// </summary>
+    public int CpEnd { get; set; }
+
+    /// <summary>
+    /// Reference to the associated CHPX (character formatting) data
+    /// </summary>
+    public byte[] Chpx { get; set; }
 }
