@@ -42,6 +42,16 @@ vwWare-toDotNet.sln
     └── obj/
 ```
 
+## Phase 3: File Parsing Progress
+
+- [x] CFBF reader scaffolding
+- [x] Directory entry parsing implemented
+- [x] Stream reading logic
+- [x] FAT chain traversal
+- [x] Document parsing scaffold
+- [x] Text extraction logic
+- [x] Document model structure
+
 ## Next Steps
 
 1. Complete CFBF reader prototype

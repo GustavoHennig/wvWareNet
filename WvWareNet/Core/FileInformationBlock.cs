@@ -155,4 +155,28 @@ public class FileInformationBlock
         WMagicRevisedPrivate = 0;
         // ... (all other properties initialized to 0/false)
     }
+
+    public static FileInformationBlock Parse(byte[] wordDocumentStream)
+    {
+        var fib = new FileInformationBlock();
+        using var ms = new System.IO.MemoryStream(wordDocumentStream);
+        using var reader = new System.IO.BinaryReader(ms);
+
+        fib.WIdent = reader.ReadUInt16();
+        fib.NFib = reader.ReadUInt16();
+        fib.NProduct = reader.ReadUInt16();
+        fib.Lid = reader.ReadUInt16();
+        fib.PnNext = reader.ReadInt16();
+        // Skipping flags and other fields for brevity; add as needed for full implementation
+
+        ms.Position = 0x18; // Example offset for FcMin
+        fib.FcMin = reader.ReadUInt32();
+        fib.FcMac = reader.ReadUInt32();
+
+        ms.Position = 0x1A2; // Example offset for FcClx
+        fib.FcClx = reader.ReadInt32();
+        fib.LcbClx = reader.ReadUInt32();
+
+        return fib;
+    }
 }
