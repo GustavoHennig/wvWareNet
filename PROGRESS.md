@@ -47,11 +47,11 @@ vwWare-toDotNet.sln
 
 ## Immediate Tasks
 
-- Implement Piece Table structures
-- Create CHP and PAP structures
+- Create Character Properties (CHP) structure
+- Create Paragraph Properties (PAP) structure
 - Complete CFBF reader implementation
 - Build document parsing scaffold
-
+- Implement basic text extraction
 ## Legacy Port Tracking
 
 This table tracks original `wvWare` C files, useful for reference in C# port. All logic is to be rewritten idiomatically.
@@ -62,7 +62,7 @@ This table tracks original `wvWare` C files, useful for reference in C# port. Al
 | wvTextEngine.c | [ ]    | Text extraction core        |
 | wvparse.c      | [ ]    | Parser logic                |
 | fib.c          | [x]    | File Information Block      |
-| plcf.c         | [ ]    | Piece table logic           |
+| plcf.c         | [x]    | Piece table logic           |
 | text.c         | [ ]    | Text-related parsing        |
 | unicode.c      | [ ]    | Unicode helpers             |
 | utf.c          | [ ]    | Encoding helpers            |
