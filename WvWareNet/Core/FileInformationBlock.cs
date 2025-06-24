@@ -156,6 +156,12 @@ public class FileInformationBlock
         // ... (all other properties initialized to 0/false)
     }
 
+    // Offsets for header/footer/footnote PLCFs (Word 97+)
+    public int FcPlcfhdd { get; set; }
+    public uint LcbPlcfhdd { get; set; }
+    public int FcPlcfftn { get; set; }
+    public uint LcbPlcfftn { get; set; }
+
     public static FileInformationBlock Parse(byte[] wordDocumentStream)
     {
         var fib = new FileInformationBlock();
@@ -176,6 +182,14 @@ public class FileInformationBlock
         ms.Position = 0x1A2; // Example offset for FcClx
         fib.FcClx = reader.ReadInt32();
         fib.LcbClx = reader.ReadUInt32();
+
+        ms.Position = 0x1E2; // Example offset for FcPlcfhdd (header/footer PLCF)
+        fib.FcPlcfhdd = reader.ReadInt32();
+        fib.LcbPlcfhdd = reader.ReadUInt32();
+
+        ms.Position = 0x1CA; // Example offset for FcPlcfftn (footnote PLCF)
+        fib.FcPlcfftn = reader.ReadInt32();
+        fib.LcbPlcfftn = reader.ReadUInt32();
 
         return fib;
     }

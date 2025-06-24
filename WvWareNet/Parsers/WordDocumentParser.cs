@@ -101,81 +101,197 @@ namespace WvWareNet.Parsers
             _documentModel.Sections.Add(defaultSection);
 
             using var wordDocMs = new System.IO.MemoryStream(wordDocStream);
-            var currentParagraph = new WvWareNet.Core.Paragraph();
-            defaultSection.Paragraphs.Add(currentParagraph);
 
-            for (int i = 0; i < pieceTable.Pieces.Count; i++)
+            // --- Paragraph boundary detection using PLCF for paragraphs (PAPX) ---
+            if (fib.FcPlcfbtePapx > 0 && fib.LcbPlcfbtePapx > 0 && fib.FcPlcfbtePapx + fib.LcbPlcfbtePapx <= tableStream.Length)
             {
-                string text = pieceTable.GetTextForPiece(i, wordDocMs);
+                byte[] plcfPapx = new byte[fib.LcbPlcfbtePapx];
+                Array.Copy(tableStream, fib.FcPlcfbtePapx, plcfPapx, 0, fib.LcbPlcfbtePapx);
 
-                // Convert CHPX to CharacterProperties
-                var chpx = pieceTable.Pieces[i].Chpx;
-                var charProps = new WvWareNet.Core.CharacterProperties();
-                if (chpx != null && chpx.Length > 0)
+                // Each entry: [CP][PAPX offset], last CP is end
+                int paraCount = (plcfPapx.Length - 4) / 8; // 4 bytes CP, 4 bytes offset per entry
+                using var plcfStream = new System.IO.MemoryStream(plcfPapx);
+                using var plcfReader = new System.IO.BinaryReader(plcfStream);
+
+                int[] cpArray = new int[paraCount + 1];
+                for (int i = 0; i < paraCount + 1; i++)
+                    cpArray[i] = plcfReader.ReadInt32();
+
+                int[] papxOffsetArray = new int[paraCount];
+                for (int i = 0; i < paraCount; i++)
+                    papxOffsetArray[i] = plcfReader.ReadInt32();
+
+                for (int i = 0; i < paraCount; i++)
                 {
-                    // Minimal CHPX parsing: look for known sprm codes for bold, italic, underline
-                    // This is a simplified example; real CHPX parsing is more complex
-                    for (int b = 0; b < chpx.Length - 2; b++)
+                    int cpStart = cpArray[i];
+                    int cpEnd = cpArray[i + 1];
+                    int offset = papxOffsetArray[i];
+
+                    // Find all pieces that overlap this paragraph
+                    var paraPieces = new List<int>();
+                    for (int p = 0; p < pieceTable.Pieces.Count; p++)
                     {
-                        byte sprm = chpx[b];
-                        byte val = chpx[b + 2]; // skip operand size byte
-                        switch (sprm)
+                        var piece = pieceTable.Pieces[p];
+                        if (piece.CpStart < cpEnd && piece.CpEnd > cpStart)
+                            paraPieces.Add(p);
+                    }
+
+                    var paragraph = new WvWareNet.Core.Paragraph();
+
+                    foreach (var pIdx in paraPieces)
+                    {
+                        string text = pieceTable.GetTextForPiece(pIdx, wordDocMs);
+
+                        // Convert CHPX to CharacterProperties
+                        var chpx = pieceTable.Pieces[pIdx].Chpx;
+                        var charProps = new WvWareNet.Core.CharacterProperties();
+                        if (chpx != null && chpx.Length > 0)
                         {
-                            case 0x08: // sprmCFBold
-                                charProps.IsBold = val != 0;
-                                break;
-                            case 0x09: // sprmCFItalic
-                                charProps.IsItalic = val != 0;
-                                break;
-                            case 0x0A: // sprmCFStrike
-                                charProps.IsStrikeThrough = val != 0;
-                                break;
-                            case 0x0B: // sprmCFOutline
-                                // Not mapped
-                                break;
-                            case 0x0C: // sprmCFShadow
-                                // Not mapped
-                                break;
-                            case 0x0D: // sprmCFSmallCaps
-                                charProps.IsSmallCaps = val != 0;
-                                break;
-                            case 0x0E: // sprmCFCaps
-                                charProps.IsAllCaps = val != 0;
-                                break;
-                            case 0x0F: // sprmCFVanish
-                                charProps.IsHidden = val != 0;
-                                break;
-                            case 0x18: // sprmCFU (underline)
-                                charProps.IsUnderlined = val != 0;
-                                break;
+                            for (int b = 0; b < chpx.Length - 2; b++)
+                            {
+                                byte sprm = chpx[b];
+                                byte val = chpx[b + 2];
+                                switch (sprm)
+                                {
+                                    case 0x08: charProps.IsBold = val != 0; break;
+                                    case 0x09: charProps.IsItalic = val != 0; break;
+                                    case 0x0A: charProps.IsStrikeThrough = val != 0; break;
+                                    case 0x0D: charProps.IsSmallCaps = val != 0; break;
+                                    case 0x0E: charProps.IsAllCaps = val != 0; break;
+                                    case 0x0F: charProps.IsHidden = val != 0; break;
+                                    case 0x18: charProps.IsUnderlined = val != 0; break;
+                                    case 0x2A: charProps.FontSize = val; break;
+                                    case 0x2B: break;
+                                    case 0x2D: charProps.IsUnderlined = val != 0; break;
+                                    case 0x2F: charProps.FtcaAscii = val; break;
+                                    case 0x30: charProps.LanguageId = val; break;
+                                    case 0x31: charProps.CharacterSpacing = (short)val; break;
+                                    case 0x32: charProps.CharacterScaling = val; break;
+                                }
+                            }
                         }
+
+                        var run = new WvWareNet.Core.Run { Text = text, Properties = charProps };
+                        paragraph.Runs.Add(run);
+                    }
+
+                    defaultSection.Paragraphs.Add(paragraph);
+                }
+            }
+            else
+            {
+                // Fallback: old logic using newlines
+                var currentParagraph = new WvWareNet.Core.Paragraph();
+                defaultSection.Paragraphs.Add(currentParagraph);
+
+                for (int i = 0; i < pieceTable.Pieces.Count; i++)
+                {
+                    string text = pieceTable.GetTextForPiece(i, wordDocMs);
+
+                    var chpx = pieceTable.Pieces[i].Chpx;
+                    var charProps = new WvWareNet.Core.CharacterProperties();
+                    if (chpx != null && chpx.Length > 0)
+                    {
+                        for (int b = 0; b < chpx.Length - 2; b++)
+                        {
+                            byte sprm = chpx[b];
+                            byte val = chpx[b + 2];
+                            switch (sprm)
+                            {
+                                case 0x08: charProps.IsBold = val != 0; break;
+                                case 0x09: charProps.IsItalic = val != 0; break;
+                                case 0x0A: charProps.IsStrikeThrough = val != 0; break;
+                                case 0x0D: charProps.IsSmallCaps = val != 0; break;
+                                case 0x0E: charProps.IsAllCaps = val != 0; break;
+                                case 0x0F: charProps.IsHidden = val != 0; break;
+                                case 0x18: charProps.IsUnderlined = val != 0; break;
+                                case 0x2A: charProps.FontSize = val; break;
+                                case 0x2B: break;
+                                case 0x2D: charProps.IsUnderlined = val != 0; break;
+                                case 0x2F: charProps.FtcaAscii = val; break;
+                                case 0x30: charProps.LanguageId = val; break;
+                                case 0x31: charProps.CharacterSpacing = (short)val; break;
+                                case 0x32: charProps.CharacterScaling = val; break;
+                            }
+                        }
+                    }
+
+                    var run = new WvWareNet.Core.Run { Text = text, Properties = charProps };
+                    currentParagraph.Runs.Add(run);
+
+                    if (text.EndsWith("\r\n") || text.EndsWith("\n") || text.EndsWith("\r"))
+                    {
+                        currentParagraph = new WvWareNet.Core.Paragraph();
+                        defaultSection.Paragraphs.Add(currentParagraph);
                     }
                 }
 
-                var run = new WvWareNet.Core.Run { Text = text, Properties = charProps };
-                currentParagraph.Runs.Add(run);
-
-                // Simple heuristic for new paragraphs: if a piece ends with a newline, start a new paragraph.
-                // This is a placeholder and needs proper paragraph boundary detection from Word's binary format.
-                if (text.EndsWith("\r\n") || text.EndsWith("\n") || text.EndsWith("\r"))
+                if (defaultSection.Paragraphs.Count > 0 && defaultSection.Paragraphs[^1].Runs.Count == 0)
                 {
-                    currentParagraph = new WvWareNet.Core.Paragraph();
-                    defaultSection.Paragraphs.Add(currentParagraph);
+                    defaultSection.Paragraphs.RemoveAt(defaultSection.Paragraphs.Count - 1);
                 }
             }
 
-            // Remove the last empty paragraph if it was created due to a trailing newline
-            if (currentParagraph.Runs.Count == 0 && defaultSection.Paragraphs.Count > 1)
+            // --- Header/Footer/Footnote Extraction ---
+            // Parse PLCF for headers/footers if available
+            if (fib.FcPlcfhdd > 0 && fib.LcbPlcfhdd > 0 && fib.FcPlcfhdd + fib.LcbPlcfhdd <= tableStream.Length)
             {
-                defaultSection.Paragraphs.RemoveAt(defaultSection.Paragraphs.Count - 1);
+                byte[] plcfhdd = new byte[fib.LcbPlcfhdd];
+                Array.Copy(tableStream, fib.FcPlcfhdd, plcfhdd, 0, fib.LcbPlcfhdd);
+
+                // Each entry: [CP][FC], last CP is end
+                int entryCount = (plcfhdd.Length - 4) / 8; // 4 bytes CP, 4 bytes FC per entry
+                using var plcfStream = new System.IO.MemoryStream(plcfhdd);
+                using var plcfReader = new System.IO.BinaryReader(plcfStream);
+
+                for (int i = 0; i < entryCount; i++)
+                {
+                    int cp = plcfReader.ReadInt32();
+                    int fc = plcfReader.ReadInt32();
+                    // For demonstration, just create a header/footer with the FC as a placeholder
+                    _documentModel.Headers.Add(new WvWareNet.Core.HeaderFooter
+                    {
+                        Type = WvWareNet.Core.HeaderFooterType.Default,
+                        Paragraphs = { new WvWareNet.Core.Paragraph { Runs = { new WvWareNet.Core.Run { Text = $"Header/Footer at FC {fc}" } } } }
+                    });
+                }
+            }
+            else
+            {
+                _documentModel.Headers.Add(new WvWareNet.Core.HeaderFooter { Type = WvWareNet.Core.HeaderFooterType.Default });
             }
 
-            // --- Header/Footer/Footnote Extraction (simplified) ---
-            // NOTE: This is a placeholder. Real implementation would parse PLCF structures for headers/footers/footnotes.
-            // For demonstration, add empty header/footer/footnote objects.
-            _documentModel.Headers.Add(new WvWareNet.Core.HeaderFooter { Type = WvWareNet.Core.HeaderFooterType.Default });
-            _documentModel.Footers.Add(new WvWareNet.Core.HeaderFooter { Type = WvWareNet.Core.HeaderFooterType.Default });
-            _documentModel.Footnotes.Add(new WvWareNet.Core.Footnote { ReferenceId = 1 });
+            // Parse PLCF for footnotes if available
+            if (fib.FcPlcfftn > 0 && fib.LcbPlcfftn > 0 && fib.FcPlcfftn + fib.LcbPlcfftn <= tableStream.Length)
+            {
+                byte[] plcfftn = new byte[fib.LcbPlcfftn];
+                Array.Copy(tableStream, fib.FcPlcfftn, plcfftn, 0, fib.LcbPlcfftn);
+
+                int entryCount = (plcfftn.Length - 4) / 8; // 4 bytes CP, 4 bytes FC per entry
+                using var plcfStream = new System.IO.MemoryStream(plcfftn);
+                using var plcfReader = new System.IO.BinaryReader(plcfStream);
+
+                for (int i = 0; i < entryCount; i++)
+                {
+                    int cp = plcfReader.ReadInt32();
+                    int fc = plcfReader.ReadInt32();
+                    _documentModel.Footnotes.Add(new WvWareNet.Core.Footnote
+                    {
+                        ReferenceId = i + 1,
+                        Paragraphs = { new WvWareNet.Core.Paragraph { Runs = { new WvWareNet.Core.Run { Text = $"Footnote at FC {fc}" } } } }
+                    });
+                }
+            }
+            else
+            {
+                _documentModel.Footnotes.Add(new WvWareNet.Core.Footnote { ReferenceId = 1 });
+            }
+
+            // Add a default footer if not already added
+            if (_documentModel.Footers.Count == 0)
+            {
+                _documentModel.Footers.Add(new WvWareNet.Core.HeaderFooter { Type = WvWareNet.Core.HeaderFooterType.Default });
+            }
         }
 
         public string ExtractText()
