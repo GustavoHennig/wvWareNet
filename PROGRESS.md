@@ -51,12 +51,17 @@ vwWare-toDotNet.sln
 - [x] Text extraction logic (basic)
 - [x] Document model structure
 
+## Phase 4: Document Model (Completed)
+
+- Enhanced in-memory document representation to support sections, runs with formatting, headers, footers, and footnotes
+- Implemented SectionProperties class to handle section-level properties
+
 ## Next Steps
 
-1. Phase 4: Document Model
-   - Enhance in-memory document representation
+1. Phase 5: Text Extraction
    - Implement text run extraction with formatting
-   - Handle document structure navigation (sections, paragraphs, runs)
+   - Improve text extraction to handle special characters and formatting
+   - Implement navigation of document structure (headers, footers, footnotes)
 
 ## Immediate Tasks
 
