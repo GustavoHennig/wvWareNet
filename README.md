@@ -2,7 +2,8 @@
 
 ## Project Status: Full C# Rewrite
 
-This project is a complete, from-scratch rewrite of the original `wvWare` (Word document parser) in modern C#.  
+This project is a complete, from-scratch rewrite of the original `wvWare` (Word document parser) in modern C#.
+
 - **No native code dependencies**
 - **No P/Invoke or interop**
 - **All logic implemented natively in C#**
@@ -10,10 +11,31 @@ This project is a complete, from-scratch rewrite of the original `wvWare` (Word 
 See `REWRITE_PLAN.md` for the detailed rewrite roadmap.
 
 ## Goals
+
 - 100% managed codebase
 - Modern, maintainable, and idiomatic C#
 - Faithful to the original `wvWare` functionality
 - Focus on text extraction feature only
 
-## Progress
-See `PROGRESS.md` for current status and next steps.
+## Scope
+
+- Input: Microsoft Word `.doc` (binary, pre-2007) files
+- Output: Plain text extracted from the document
+- Only extract-to-text feature from original wvWare is targeted
+- Not a line-by-line port, but a clean architectural redesign in C#
+
+## Key Design Constraints
+
+- No P/Invoke
+- No external dependencies unless absolutely necessary
+- Built using .NET 9
+- Unit tests are not a priority during early stages
+
+## Original Project
+
+- Based on: [wvWave on SourceForge](https://sourceforge.net/projects/wvware/)
+- This project is a modern reimplementation in C#.
+
+## License
+
+This project is based on the original wvWave, licensed under the GNU GPL. See COPYING for details.

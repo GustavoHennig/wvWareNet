@@ -1,22 +1,28 @@
+# REWRITE_PLAN.md
+
 # vwWare C# Rewrite Plan
 
 ## Project Goals
+
 - Port only the "extract-to-text" feature from wvWare
-- Create 100% managed C# implementation (.NET 9)
+- Create 100% managed C# implementation targeting .NET 9
 - No P/Invoke or native dependencies
-- Focus on Microsoft Word `.doc` (binary, pre-2007) files
+- Focus exclusively on Microsoft Word `.doc` (binary, pre-2007) files
 - Output: Plain text extracted from documents
-- Follow C# idiomatic patterns (not line-by-line port)
-- Unit tests are not priority at this stage
+- Follow idiomatic C# patterns (not a line-by-line port)
+- Unit tests are not a priority at this stage
 
 ## Feature Scope
-- Input: Microsoft Word `.doc` (binary, pre-2007) files
-- Output: Plain text extracted from documents
-- Required functionality:
-  - Parse Compound File Binary Format (CFBF)
-  - Navigate document structure (FIB, piece tables, text runs)
-  - Decode text (handling encodings, Unicode, etc.)
-  - Output plain text
+
+- **Input**: Microsoft Word `.doc` (binary, pre-2007) files
+- **Output**: Plain text extracted from documents
+
+### Required Functionality
+
+- Parse Compound File Binary Format (CFBF)
+- Navigate Word document structure (FIB, piece tables, text runs)
+- Decode text (Unicode, encodings, conversions)
+- Output plain text
 
 ## Architecture
 
@@ -33,17 +39,22 @@
   - In-memory representation of Word document structure
 
 ### Dependencies
-- .NET System.IO for file access
-- Minimal custom CFBF parser (since CFBF not natively supported in .NET)
-- No external dependencies
 
-## Phase 1: Project Setup - COMPLETE
-- [x] Define rewrite goals and scope
-- [x] Update documentation (README, PROGRESS)
-- [x] Create .NET 9 solution/project structure
-- [x] Establish coding standards and conventions
+- .NET `System.IO` for file access
+- Minimal custom CFBF parser (since CFBF is not natively supported in .NET)
+- No external or third-party dependencies unless strictly necessary
 
-## Phase 2: Core Data Structures
+## Phase Breakdown
+
+### Phase 1: Project Setup — ✅ Complete
+
+- [x] Defined rewrite goals and scope
+- [x] Updated documentation (`README`, `PROGRESS`)
+- [x] Created .NET 9 solution/project structure
+- [x] Established coding standards and conventions
+
+### Phase 2: Core Data Structures
+
 - [ ] Implement essential structs/classes:
   - File Information Block (FIB)
   - Character Properties (CHP)
@@ -51,30 +62,35 @@
   - Piece Table structures
 - [ ] Create base parsing utilities
 
-## Phase 3: File Parsing
-- [ ] Implement .doc file header parsing
+### Phase 3: File Parsing
+
+- [ ] Implement `.doc` file header parsing
 - [ ] Develop stream reading utilities
-- [ ] Create CFBF reader
+- [ ] Create custom CFBF reader
 - [ ] Parse Word document streams (WordDocument, Table, etc.)
 
-## Phase 4: Document Model
+### Phase 4: Document Model
+
 - [ ] Build in-memory document representation
 - [ ] Implement text run extraction
 - [ ] Handle document structure navigation
 
-## Phase 5: Text Extraction
+### Phase 5: Text Extraction
+
 - [ ] Implement text decoding logic
 - [ ] Handle character encoding conversions
 - [ ] Process piece tables to extract text
-- [ ] Build text output mechanism
+- [ ] Build plain text output mechanism
 
-## Phase 6: API and Integration
-- [ ] Create WvDocExtractor public interface
-- [ ] Implement ExtractText() method
+### Phase 6: API and Integration
+
+- [ ] Create `WvDocExtractor` public interface
+- [ ] Implement `ExtractText()` method
 - [ ] Handle edge cases and error conditions
-- [ ] Basic console test application
+- [ ] Build basic console test application
 
-## Phase 7: Optimization and Refinement
+### Phase 7: Optimization & Finalization
+
 - [ ] Performance tuning
 - [ ] Memory optimization
 - [ ] Error handling improvements
