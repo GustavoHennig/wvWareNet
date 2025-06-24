@@ -17,6 +17,9 @@ namespace WvWareNet.Parsers
 
         public void ParseDocument()
         {
+            // Ensure header is parsed before reading directory entries
+            _cfbfParser.ParseHeader();
+
             // Parse directory entries
             var entries = _cfbfParser.ParseDirectoryEntries();
 

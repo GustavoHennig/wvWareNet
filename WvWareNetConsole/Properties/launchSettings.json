@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WvWareNetConsole": {
+      "commandName": "Project",
+      "commandLineArgs": "news-example.doc"
+    }
+  }
+}

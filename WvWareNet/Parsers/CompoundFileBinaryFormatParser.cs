@@ -10,6 +10,8 @@ public class CompoundFileBinaryFormatParser
     private uint _sectorSize;
     private uint _fatSectorCount;
     private uint _firstFatSectorLocation;
+    private uint _firstDirectorySectorLocation;
+    private uint[] _difat = new uint[109];
 
     // Constants
     private const uint EndOfChain = 0xFFFFFFFE;
@@ -27,6 +29,7 @@ public class CompoundFileBinaryFormatParser
     {
         // Read and validate header signature
         byte[] signature = _reader.ReadBytes(8);
+        Console.WriteLine("[DEBUG] Signature bytes: " + BitConverter.ToString(signature));
         if (!IsValidSignature(signature))
         {
             throw new InvalidDataException("Invalid CFBF file signature");
@@ -42,13 +45,19 @@ public class CompoundFileBinaryFormatParser
         _reader.ReadBytes(6); // Reserved
         uint directorySectorCount = _reader.ReadUInt32();
         _fatSectorCount = _reader.ReadUInt32();
-        uint firstDirectorySectorLocation = _reader.ReadUInt32();
+        _firstDirectorySectorLocation = _reader.ReadUInt32();
         uint transactionSignatureNumber = _reader.ReadUInt32();
         uint miniStreamCutoffSize = _reader.ReadUInt32();
         uint firstMiniFatSectorLocation = _reader.ReadUInt32();
         uint miniFatSectorCount = _reader.ReadUInt32();
         _firstFatSectorLocation = _reader.ReadUInt32();
         uint difatSectorCount = _reader.ReadUInt32();
+
+        // Read DIFAT array (109 entries)
+        for (int i = 0; i < 109; i++)
+        {
+            _difat[i] = _reader.ReadUInt32();
+        }
 
         // Calculate sector size based on sector shift
         _sectorSize = (uint)(1 << sectorShift);
@@ -73,38 +82,46 @@ public class CompoundFileBinaryFormatParser
 
     public List<DirectoryEntry> ParseDirectoryEntries()
     {
-        // Assumes header has been parsed and directory sector location is known.
-        // For demonstration, this reads a single directory entry at the current position.
-        var entries = new List<DirectoryEntry>();
-        try
+        // Read the directory stream using the FAT chain
+        List<uint> dirChain = GetFatChain(_firstDirectorySectorLocation);
+        using var dirStream = new MemoryStream();
+        foreach (uint sector in dirChain)
         {
-            while (_reader.BaseStream.Position < _reader.BaseStream.Length)
-            {
-                long entryStart = _reader.BaseStream.Position;
-                byte[] nameBytes = _reader.ReadBytes(64);
-                ushort nameLength = _reader.ReadUInt16();
-                string name = System.Text.Encoding.Unicode.GetString(nameBytes, 0, nameLength - 2);
-                byte entryType = _reader.ReadByte();
-                _reader.BaseStream.Position = entryStart + 116; // Skip to StartingSectorLocation
-                uint startingSector = _reader.ReadUInt32();
-                ulong streamSize = _reader.ReadUInt64();
-                _reader.BaseStream.Position = entryStart + 128; // Move to next entry
-
-                entries.Add(new DirectoryEntry
-                {
-                    Name = name,
-                    EntryType = entryType,
-                    StartingSectorLocation = startingSector,
-                    StreamSize = streamSize
-                });
-
-                if (_reader.BaseStream.Position + 128 > _reader.BaseStream.Length)
-                    break;
-            }
+            long sectorOffset = 512 + (sector * _sectorSize);
+            _reader.BaseStream.Seek(sectorOffset, SeekOrigin.Begin);
+            byte[] data = _reader.ReadBytes((int)_sectorSize);
+            dirStream.Write(data, 0, data.Length);
         }
-        catch (EndOfStreamException)
+
+        // Parse 128-byte directory entries from the directory stream
+        var entries = new List<DirectoryEntry>();
+        dirStream.Position = 0;
+        long dirLen = dirStream.Length;
+        using var dirReader = new BinaryReader(dirStream);
+        while (dirStream.Position + 128 <= dirLen)
         {
-            // End of directory entries
+            byte[] nameBytes = dirReader.ReadBytes(64);
+            ushort nameLength = dirReader.ReadUInt16();
+            string name = "";
+            if (nameLength >= 2 && nameLength <= 64 && (nameLength - 2) <= nameBytes.Length)
+            {
+                name = System.Text.Encoding.Unicode.GetString(nameBytes, 0, nameLength - 2);
+                name = name.TrimEnd('\0', ' ', '\t', '\r', '\n');
+            }
+            byte entryType = dirReader.ReadByte();
+            dirStream.Position = dirStream.Position - 65 + 116; // Move to StartingSectorLocation
+            uint startingSector = dirReader.ReadUInt32();
+            ulong streamSize = dirReader.ReadUInt64();
+            dirStream.Position = dirStream.Position - 12 + 128; // Move to next entry
+
+            Console.WriteLine($"[DEBUG] DirectoryEntry: '{name}'");
+            entries.Add(new DirectoryEntry
+            {
+                Name = name,
+                EntryType = entryType,
+                StartingSectorLocation = startingSector,
+                StreamSize = streamSize
+            });
         }
         return entries;
     }
@@ -157,33 +174,30 @@ public class CompoundFileBinaryFormatParser
         // Calculate number of entries per sector
         uint entriesPerSector = _sectorSize / sizeof(uint);
         uint totalEntries = entriesPerSector * _fatSectorCount;
+        Console.WriteLine($"[DEBUG] FAT: _fatSectorCount={_fatSectorCount}, _sectorSize={_sectorSize}, entriesPerSector={entriesPerSector}, totalEntries={totalEntries}");
         _fat = new uint[totalEntries];
-        
-        uint currentSector = _firstFatSectorLocation;
-        int fatIndex = 0;
-        
-        for (int i = 0; i < _fatSectorCount; i++)
+
+        // Collect FAT sector locations from DIFAT array
+        var fatSectors = new List<uint>();
+        for (int i = 0; i < Math.Min(_fatSectorCount, 109); i++)
         {
-            // Calculate sector position (sectors start after header)
-            long position = (currentSector + 1) * _sectorSize;
+            if (_difat[i] != FreeSector)
+                fatSectors.Add(_difat[i]);
+        }
+
+        // TODO: For files with more than 109 FAT sectors, follow DIFAT sector chain (not implemented here)
+
+        int fatIndex = 0;
+        foreach (var sector in fatSectors)
+        {
+            long position = (sector + 1) * _sectorSize;
             _reader.BaseStream.Seek(position, SeekOrigin.Begin);
-            
-            // Read all entries in this FAT sector
+
             for (int j = 0; j < entriesPerSector; j++)
             {
-                _fat[fatIndex++] = _reader.ReadUInt32();
+                if (fatIndex < _fat.Length)
+                    _fat[fatIndex++] = _reader.ReadUInt32();
             }
-            
-            // Get next FAT sector from the chain
-            if (currentSector >= _fat.Length)
-            {
-                throw new InvalidDataException($"Invalid FAT index: {currentSector}");
-            }
-            currentSector = _fat[currentSector];
-            
-            // Check for end of chain
-            if (currentSector == EndOfChain || currentSector == FreeSector) 
-                break;
         }
     }
 }

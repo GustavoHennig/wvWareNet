@@ -23,8 +23,7 @@ public class WvDocExtractor
 
         using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
         var cfbfParser = new CompoundFileBinaryFormatParser(fileStream);
-        cfbfParser.ParseHeader();
-
+        
         var wordDocumentParser = new WordDocumentParser(cfbfParser);
         wordDocumentParser.ParseDocument();
 

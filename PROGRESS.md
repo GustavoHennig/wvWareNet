@@ -67,12 +67,12 @@ vwWare-toDotNet.sln
 - [ ] Parse and extract headers, footers, and footnotes
 - [ ] Output text with formatting and document structure
 
-## Phase 6: API and Integration — ⏸ Not Started
+## Phase 6: API and Integration — 🚧 In Progress
 
-- [ ] Create `WvDocExtractor` public interface
-- [ ] Implement `ExtractText()` method
-- [ ] Handle edge cases and error conditions (basic)
-- [ ] Build basic console test application (in `WvWareNetConsole` project)
+- [x] Created `WvDocExtractor` public interface
+- [x] Implemented `ExtractText()` method
+- [x] Added basic error handling
+- [x] Built console test application (in `WvWareNetConsole` project)
 
 ## Next Steps
 

@@ -1,6 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <None Remove="news-example.doc" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="news-example.doc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WvWareNet\WvWaveDotNet.csproj" />
   </ItemGroup>
 

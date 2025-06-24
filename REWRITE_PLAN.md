@@ -82,12 +82,13 @@
 - [ ] Process piece tables to extract text
 - [ ] Build plain text output mechanism
 
-### Phase 6: API and Integration
+### Phase 6: API and Integration — 🚧 In Progress
 
-- [ ] Create `WvDocExtractor` public interface
-- [ ] Implement `ExtractText()` method
-- [ ] Handle edge cases and error conditions
-- [ ] Build basic console test application
+- [x] Create `WvDocExtractor` public interface
+- [x] Implement `ExtractText()` method
+- [x] Handle edge cases and error conditions
+- [x] Build basic console test application
+- [ ] The output of "WvWareNetConsole\news-example.doc" must run withou errors and the sentence "Existe uma Caixa de texto aqui" must contains in the output. Cannot consider it done until this is working.
 
 ### Phase 7: Optimization & Finalization
 
