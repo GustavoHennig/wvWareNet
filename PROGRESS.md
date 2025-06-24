@@ -16,6 +16,9 @@
   - CFBF parser prototype created
   - Logging infrastructure set up
   - Basic file stream handling implemented
+  - Piece Table structures implemented
+  - Character Properties (CHP) implemented
+  - Paragraph Properties (PAP) implemented
 
 ### Solution Layout
 
@@ -24,7 +27,11 @@ vwWare-toDotNet.sln
 └── WvWareNet/
     ├── WvWaveDotNet.csproj
     ├── Core/
-    │   └── FileInformationBlock.cs
+    │   ├── FileInformationBlock.cs
+    │   ├── PieceDescriptor.cs
+    │   ├── PieceTable.cs
+    │   ├── CharacterProperties.cs
+    │   └── ParagraphProperties.cs
     ├── Parsers/
     │   └── CompoundFileBinaryFormatParser.cs
     ├── Utilities/
@@ -37,21 +44,17 @@ vwWare-toDotNet.sln
 
 ## Next Steps
 
-1. Complete core data structures (Phase 2):
-   - Character Properties (CHP)
-   - Paragraph Properties (PAP)
-   - Piece Table structures
-2. Complete CFBF reader prototype
-3. Create basic document parsing scaffold
-4. Initialize text extraction logic
+1. Complete CFBF reader prototype
+2. Create basic document parsing scaffold
+3. Initialize text extraction logic
+4. Implement document model structure
 
 ## Immediate Tasks
 
-- Create Character Properties (CHP) structure
-- Create Paragraph Properties (PAP) structure
 - Complete CFBF reader implementation
 - Build document parsing scaffold
 - Implement basic text extraction
+- Create document model class
 ## Legacy Port Tracking
 
 This table tracks original `wvWare` C files, useful for reference in C# port. All logic is to be rewritten idiomatically.
