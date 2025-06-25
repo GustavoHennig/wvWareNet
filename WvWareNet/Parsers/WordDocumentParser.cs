@@ -37,25 +37,35 @@ namespace WvWareNet.Parsers
                 throw new InvalidDataException("Required WordDocument stream not found in CFBF file.");
             }
 
+            // Read stream data
+            var wordDocStream = _cfbfParser.ReadStream(wordDocEntry);
+
+            // Parse FIB early to detect Word95 before Table stream check
+            var fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
+
             // For Word95 files, try to proceed without Table stream if not found
             var tableEntry = entries.Find(e => 
                 e.Name.Contains("1Table", StringComparison.OrdinalIgnoreCase)) 
                 ?? entries.Find(e => e.Name.Contains("0Table", StringComparison.OrdinalIgnoreCase))
                 ?? entries.Find(e => e.Name.Contains("Table", StringComparison.OrdinalIgnoreCase));
 
-            if (tableEntry == null && _documentModel?.FileInfo?.FibVersion?.StartsWith("Word95") == true)
+            bool isWord95 = fib.NFib == 100 || fib.NFib == 101;
+
+            if (tableEntry == null)
             {
-                Console.WriteLine("[WARN] Table stream not found in Word95 document, attempting to parse with reduced functionality");
-            }
-            else if (tableEntry == null)
-            {
-                throw new InvalidDataException("Required Table stream not found in CFBF file.");
+                if (isWord95)
+                {
+                    Console.WriteLine($"[WARN] Table stream not found in Word95/Word6 document (NFib={fib.NFib}), attempting to parse with reduced functionality");
+                    // Do not throw, continue with fallback logic
+                }
+                else
+                {
+                    Console.WriteLine($"[ERROR] Table stream not found, and not a recognized Word95/Word6 document (NFib={fib.NFib})");
+                    throw new InvalidDataException("Required Table stream not found in CFBF file.");
+                }
             }
 
             Console.WriteLine($"[DEBUG] Found WordDocument stream: {wordDocEntry.Name}");
-            
-            // Read stream data
-            var wordDocStream = _cfbfParser.ReadStream(wordDocEntry);
             byte[] tableStream = null;
             
             if (tableEntry != null)
@@ -64,12 +74,10 @@ namespace WvWareNet.Parsers
                 tableStream = _cfbfParser.ReadStream(tableEntry);
             }
 
-            // Parse FileInformationBlock (FIB)
-            var fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
             _documentModel = new WvWareNet.Core.DocumentModel();
             _documentModel.FileInfo = fib;
 
-            if ((fib.FEncrypted || fib.FCrypto) && fib.FibVersion?.StartsWith("Word95") != true)
+            if ((fib.FEncrypted || fib.FCrypto) && !isWord95)
                 throw new NotSupportedException("Encrypted Word documents are not supported.");
 
             if (fib.FibVersion == null)
@@ -108,7 +116,7 @@ namespace WvWareNet.Parsers
             // Extract CHPX (character formatting) data from Table stream using PLCFCHPX
             // PLCFCHPX location is in FIB: FcPlcfbteChpx, LcbPlcfbteChpx
             var chpxList = new List<byte[]>();
-            if (fib.FcPlcfbteChpx > 0 && fib.LcbPlcfbteChpx > 0 && fib.FcPlcfbteChpx + fib.LcbPlcfbteChpx <= tableStream.Length)
+            if (tableStream != null && fib.FcPlcfbteChpx > 0 && fib.LcbPlcfbteChpx > 0 && fib.FcPlcfbteChpx + fib.LcbPlcfbteChpx <= tableStream.Length)
             {
                 // Parse PLCFCHPX (Piecewise Linear Control File for CHPX)
                 byte[] plcfChpx = new byte[fib.LcbPlcfbteChpx];
@@ -162,7 +170,7 @@ namespace WvWareNet.Parsers
             using var wordDocMs = new System.IO.MemoryStream(wordDocStream);
 
             // --- Paragraph boundary detection using PLCF for paragraphs (PAPX) ---
-            if (fib.FcPlcfbtePapx > 0 && fib.LcbPlcfbtePapx > 0 && fib.FcPlcfbtePapx + fib.LcbPlcfbtePapx <= tableStream.Length)
+            if (tableStream != null && fib.FcPlcfbtePapx > 0 && fib.LcbPlcfbtePapx > 0 && fib.FcPlcfbtePapx + fib.LcbPlcfbtePapx <= tableStream.Length)
             {
                 byte[] plcfPapx = new byte[fib.LcbPlcfbtePapx];
                 Array.Copy(tableStream, fib.FcPlcfbtePapx, plcfPapx, 0, fib.LcbPlcfbtePapx);
@@ -293,7 +301,7 @@ namespace WvWareNet.Parsers
 
             // --- Header/Footer/Footnote Extraction ---
             // Parse PLCF for headers/footers if available
-            if (fib.FcPlcfhdd > 0 && fib.LcbPlcfhdd > 0 && fib.FcPlcfhdd + fib.LcbPlcfhdd <= tableStream.Length)
+            if (tableStream != null && fib.FcPlcfhdd > 0 && fib.LcbPlcfhdd > 0 && fib.FcPlcfhdd + fib.LcbPlcfhdd <= tableStream.Length)
             {
                 byte[] plcfhdd = new byte[fib.LcbPlcfhdd];
                 Array.Copy(tableStream, fib.FcPlcfhdd, plcfhdd, 0, fib.LcbPlcfhdd);
@@ -335,7 +343,7 @@ namespace WvWareNet.Parsers
             }
 
             // --- Text Box Extraction ---
-            if (fib.FcPlcftxbxTxt > 0 && fib.LcbPlcftxbxTxt > 0 && 
+            if (tableStream != null && fib.FcPlcftxbxTxt > 0 && fib.LcbPlcftxbxTxt > 0 && 
                 fib.FcPlcftxbxTxt + fib.LcbPlcftxbxTxt <= tableStream.Length)
             {
                 byte[] plcfTxtBx = new byte[fib.LcbPlcftxbxTxt];
@@ -374,7 +382,7 @@ namespace WvWareNet.Parsers
             }
 
             // Parse PLCF for footnotes if available
-            if (fib.FcPlcfftn > 0 && fib.LcbPlcfftn > 0 && fib.FcPlcfftn + fib.LcbPlcfftn <= tableStream.Length)
+            if (tableStream != null && fib.FcPlcfftn > 0 && fib.LcbPlcfftn > 0 && fib.FcPlcfftn + fib.LcbPlcfftn <= tableStream.Length)
             {
                 byte[] plcfftn = new byte[fib.LcbPlcfftn];
                 Array.Copy(tableStream, fib.FcPlcfftn, plcfftn, 0, fib.LcbPlcfftn);
@@ -419,6 +427,22 @@ namespace WvWareNet.Parsers
             {
                 _documentModel.Footers.Add(new WvWareNet.Core.HeaderFooter { Type = WvWareNet.Core.HeaderFooterType.Default });
             }
+        }
+
+        // Word95 flat file parsing (not CFBF)
+        public void ParseWord95FlatFile(byte[] fileData)
+        {
+            // Typical Word95 text starts at 0x200
+            int textStart = 0x200;
+            int textLength = fileData.Length > textStart ? fileData.Length - textStart : 0;
+            string text = textLength > 0 ? System.Text.Encoding.Default.GetString(fileData, textStart, textLength) : string.Empty;
+
+            _documentModel = new WvWareNet.Core.DocumentModel();
+            var section = new WvWareNet.Core.Section();
+            var paragraph = new WvWareNet.Core.Paragraph();
+            paragraph.Runs.Add(new WvWareNet.Core.Run { Text = text });
+            section.Paragraphs.Add(paragraph);
+            _documentModel.Sections.Add(section);
         }
 
         public string ExtractText()
