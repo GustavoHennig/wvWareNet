@@ -129,13 +129,20 @@ public class PieceTable
                 bool isUnicode = (fcValue & 0x40000000) != 0;
                 uint fc = fcValue & 0x3FFFFFFF;
 
+                int cpStart = cpArray[j];
+                int cpEnd = cpArray[j + 1];
+                int fcStart = (int)fc;
+                int fcEnd = fcStart + (isUnicode ? (cpEnd - cpStart) * 2 : (cpEnd - cpStart));
+
                 var descriptor = new PieceDescriptor
                 {
                     FilePosition = fc,
                     IsUnicode = isUnicode,
                     HasFormatting = false,
-                    CpStart = cpArray[j],
-                    CpEnd = cpArray[j + 1]
+                    CpStart = cpStart,
+                    CpEnd = cpEnd,
+                    FcStart = fcStart,
+                    FcEnd = fcEnd
                 };
 
                 _pieces.Add(descriptor);
@@ -157,13 +164,9 @@ public class PieceTable
 
         var piece = _pieces[index];
         using var reader = new BinaryReader(documentStream);
-        documentStream.Seek(piece.FilePosition, SeekOrigin.Begin);
+        documentStream.Seek(piece.FcStart, SeekOrigin.Begin);
 
-        // For simplicity, we're just reading to the next piece
-        // In a real implementation, we would use the character position array
-        uint length = (index < _pieces.Count - 1) 
-            ? _pieces[index + 1].FilePosition - piece.FilePosition 
-            : (uint)(documentStream.Length - piece.FilePosition);
+        uint length = (uint)(piece.FcEnd - piece.FcStart);
 
         if (piece.IsUnicode)
         {
@@ -212,7 +215,9 @@ public class PieceTable
             IsUnicode = false,
             HasFormatting = false,
             CpStart = 0,
-            CpEnd = (int)(fcMac - fcMin)
+            CpEnd = (int)(fcMac - fcMin),
+            FcStart = (int)fcMin,
+            FcEnd = (int)fcMac
         });
     }
 }
