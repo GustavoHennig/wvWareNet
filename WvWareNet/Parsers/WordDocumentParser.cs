@@ -51,6 +51,14 @@ namespace WvWareNet.Parsers
             // Parse FileInformationBlock (FIB)
             var fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
 
+            if (fib.FEncrypted || fib.FCrypto)
+                throw new NotSupportedException("Encrypted Word documents are not supported.");
+
+            if (fib.FibVersion == null)
+                Console.WriteLine($"[WARN] Unknown Word version NFib={fib.NFib}");
+            else
+                Console.WriteLine($"[INFO] Detected Word version: {fib.FibVersion}");
+
             // Extract CLX (piece table) data from Table stream using FIB offsets
             Console.WriteLine($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
             if (fib.FcClx < 0 || fib.LcbClx == 0 || fib.FcClx + fib.LcbClx > tableStream.Length)

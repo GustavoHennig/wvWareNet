@@ -62,6 +62,7 @@ vwWare-toDotNet.sln
 - [x] Handle character encoding conversions
 - [x] Process piece tables to extract text
 - [x] Build plain text output mechanism
+- [x] Added FIB version detection and encryption check
 - [ ] Parse and apply character formatting (CHPX/PLCFCHPX) to runs
 - [ ] Convert CHPX to CharacterProperties for each run
 - [ ] Parse and extract headers, footers, and footnotes
