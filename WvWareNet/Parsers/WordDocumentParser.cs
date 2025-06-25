@@ -15,7 +15,7 @@ namespace WvWareNet.Parsers
 
         private WvWareNet.Core.DocumentModel _documentModel;
 
-        public void ParseDocument()
+        public void ParseDocument(string password = null)
         {
             // Ensure header is parsed before reading directory entries
             _cfbfParser.ParseHeader();
@@ -42,6 +42,16 @@ namespace WvWareNet.Parsers
 
             // Parse FIB early to detect Word95 before Table stream check
             var fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
+
+            // Decrypt Word95 documents if necessary
+            if (fib.NFib == 0x0065 && fib.FEncrypted)
+            {
+                if (string.IsNullOrEmpty(password))
+                    throw new InvalidDataException("Password required for Word95 decryption.");
+
+                wordDocStream = WvWareNet.Core.Decryptor95.Decrypt(wordDocStream, password, fib.LKey);
+                fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
+            }
 
             // For Word95 files, try to proceed without Table stream if not found
             var tableEntry = entries.Find(e => 

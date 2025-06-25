@@ -71,7 +71,7 @@ public class WvDocExtractor
         var cfbfParser = new CompoundFileBinaryFormatParser(fileStream);
         
         var wordDocumentParser2 = new WordDocumentParser(cfbfParser);
-        wordDocumentParser2.ParseDocument();
+        wordDocumentParser2.ParseDocument(password);
 
         return wordDocumentParser2.ExtractText();
     }
