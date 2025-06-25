@@ -99,7 +99,7 @@ namespace WvWareNet.Parsers
                 Array.Copy(tableStream, fib.FcClx, clxData, 0, fib.LcbClx);
 
                 // Create PieceTable and parse
-                pieceTable.Parse(clxData, fib.FcMin, fib.FcMac);
+                pieceTable.Parse(clxData, fib.FcMin, fib.FcMac, fib.NFib);
                 if (pieceTable.Pieces.Count == 1 && pieceTable.Pieces[0].FcStart >= wordDocStream.Length)
                 {
                     logger.LogWarning("Invalid piece table detected, falling back to FcMin/FcMac range.");

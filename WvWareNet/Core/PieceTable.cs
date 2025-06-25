@@ -30,7 +30,7 @@ public class PieceTable
         }
     }
 
-    public void Parse(byte[] data, uint fcMin, uint fcMac)
+    public void Parse(byte[] data, uint fcMin, uint fcMac, ushort nFib)
     {
         _pieces.Clear();
         if (data == null || data.Length == 0)
@@ -121,23 +121,39 @@ public class PieceTable
             for (int j = 0; j < pieceCount + 1; j++)
                 cpArray[j] = reader.ReadInt32();
 
+            var fcValues = new uint[pieceCount];
+            var unicodeFlags = new bool[pieceCount];
             for (int j = 0; j < pieceCount; j++)
             {
                 uint fcValue = reader.ReadUInt32();
                 reader.ReadUInt32(); // skip PRM for now
 
-                bool isUnicode = (fcValue & 0x40000000) != 0;
-                uint fc = fcValue & 0x3FFFFFFF;
+                unicodeFlags[j] = (fcValue & 0x40000000) != 0;
+                fcValues[j] = fcValue & 0x3FFFFFFF;
+            }
 
+            bool anyUnicode = false;
+            for (int j = 0; j < pieceCount; j++)
+                if (unicodeFlags[j]) { anyUnicode = true; break; }
+
+            if (nFib == 0x0065 && !anyUnicode)
+            {
+                bool guess = GuessPiecesAre16Bit(fcValues, cpArray);
+                for (int j = 0; j < pieceCount; j++)
+                    unicodeFlags[j] = guess;
+            }
+
+            for (int j = 0; j < pieceCount; j++)
+            {
                 int cpStart = cpArray[j];
                 int cpEnd = cpArray[j + 1];
-                int fcStart = (int)fc;
-                int fcEnd = fcStart + (isUnicode ? (cpEnd - cpStart) * 2 : (cpEnd - cpStart));
+                int fcStart = (int)fcValues[j];
+                int fcEnd = fcStart + (unicodeFlags[j] ? (cpEnd - cpStart) * 2 : (cpEnd - cpStart));
 
                 var descriptor = new PieceDescriptor
                 {
-                    FilePosition = fc,
-                    IsUnicode = isUnicode,
+                    FilePosition = fcValues[j],
+                    IsUnicode = unicodeFlags[j],
                     HasFormatting = false,
                     CpStart = cpStart,
                     CpEnd = cpEnd,
@@ -217,6 +233,33 @@ public class PieceTable
                 sb.Append(c);
         }
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Attempt to determine if the pieces in a Word95 document contain
+    /// 16‑bit text. This mirrors the heuristic used by wvGuess16bit in the
+    /// original wvWare project.
+    /// </summary>
+    /// <param name="fcValues">File positions for each piece.</param>
+    /// <param name="cpArray">Character position array from the piece table.</param>
+    private static bool GuessPiecesAre16Bit(uint[] fcValues, int[] cpArray)
+    {
+        var tuples = new List<(uint Fc, uint Offset)>();
+        for (int i = 0; i < fcValues.Length; i++)
+        {
+            uint offset = (uint)(cpArray[i + 1] - cpArray[i]) * 2u;
+            tuples.Add((fcValues[i], offset));
+        }
+
+        tuples.Sort((a, b) => a.Fc.CompareTo(b.Fc));
+
+        for (int i = 0; i < tuples.Count - 1; i++)
+        {
+            if (tuples[i].Fc + tuples[i].Offset > tuples[i + 1].Fc)
+                return false; // Overlap means 8-bit text
+        }
+
+        return true; // No overlap detected -> assume 16-bit
     }
 
     /// <summary>
