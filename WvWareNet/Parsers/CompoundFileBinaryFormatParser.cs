@@ -12,6 +12,7 @@ public class CompoundFileBinaryFormatParser
     private uint _firstFatSectorLocation;
     private uint _firstDirectorySectorLocation;
     private uint[] _difat = new uint[109];
+    private bool _isOleFormat = false; // Track if document is in OLE format
 
     // Constants
     private const uint EndOfChain = 0xFFFFFFFE;
@@ -25,15 +26,30 @@ public class CompoundFileBinaryFormatParser
         _reader = new BinaryReader(stream);
     }
 
-    public void ParseHeader()
-    {
-        // Read and validate header signature
-        byte[] signature = _reader.ReadBytes(8);
-        Console.WriteLine("[DEBUG] Signature bytes: " + BitConverter.ToString(signature));
-        if (!IsValidSignature(signature))
+        public void ParseHeader()
         {
-            throw new InvalidDataException("Invalid CFBF file signature");
-        }
+            _reader.BaseStream.Position = 0;
+            byte[] signature = _reader.ReadBytes(8);
+            
+            // Check for both CFBF and OLE signatures
+            bool isCfb = signature[0] == 0xD0 && signature[1] == 0xCF && signature[2] == 0x11 && 
+                         signature[3] == 0xE0 && signature[4] == 0xA1 && signature[5] == 0xB1 && 
+                         signature[6] == 0x1A && signature[7] == 0xE1;
+            
+            bool isOle = signature[0] == 0xE1 && signature[1] == 0x1A && signature[2] == 0xB1 && 
+                         signature[3] == 0xA1 && signature[4] == 0xE0 && signature[5] == 0x11 && 
+                         signature[6] == 0xCF && signature[7] == 0xD0;
+
+            if (!isCfb && !isOle)
+            {
+                throw new InvalidDataException("Invalid file signature - not a valid OLE or CFBF document");
+            }
+            
+            // If it's OLE signature, reverse the byte order for the rest of the parsing
+            if (isOle)
+            {
+                _isOleFormat = true;
+            }
 
         // Read header fields
         Guid clsid = new Guid(_reader.ReadBytes(16));
@@ -100,28 +116,65 @@ public class CompoundFileBinaryFormatParser
         using var dirReader = new BinaryReader(dirStream);
         while (dirStream.Position + 128 <= dirLen)
         {
-            byte[] nameBytes = dirReader.ReadBytes(64);
-            ushort nameLength = dirReader.ReadUInt16();
-            string name = "";
-            if (nameLength >= 2 && nameLength <= 64 && (nameLength - 2) <= nameBytes.Length)
+            long entryStart = dirStream.Position;
+            byte[] entryBytes = dirReader.ReadBytes(128);
+            if (entryBytes.Length < 128) break;
+            
+            using (var ms = new MemoryStream(entryBytes))
+            using (var br = new BinaryReader(ms))
             {
-                name = System.Text.Encoding.Unicode.GetString(nameBytes, 0, nameLength - 2);
-                name = name.TrimEnd('\0', ' ', '\t', '\r', '\n');
-            }
-            byte entryType = dirReader.ReadByte();
-            dirStream.Position = dirStream.Position - 65 + 116; // Move to StartingSectorLocation
-            uint startingSector = dirReader.ReadUInt32();
-            ulong streamSize = dirReader.ReadUInt64();
-            dirStream.Position = dirStream.Position - 12 + 128; // Move to next entry
+                // Read the full 64-byte name field
+                byte[] nameField = br.ReadBytes(64);
 
-            Console.WriteLine($"[DEBUG] DirectoryEntry: '{name}'");
-            entries.Add(new DirectoryEntry
-            {
-                Name = name,
-                EntryType = entryType,
-                StartingSectorLocation = startingSector,
-                StreamSize = streamSize
-            });
+                // Read and ignore nameLength field
+                br.ReadUInt16();
+
+                // Find the first null terminator (two consecutive zero bytes)
+                int nameBytesLen = 64;
+                for (int i = 0; i < nameField.Length - 1; i += 2)
+                {
+                    if (nameField[i] == 0 && nameField[i + 1] == 0)
+                    {
+                        nameBytesLen = (i == 0) ? 0 : i;
+                        break;
+                    }
+                }
+
+                Console.WriteLine($"[DEBUG] Raw nameField bytes: {BitConverter.ToString(nameField)}");
+                Console.WriteLine($"[DEBUG] Calculated nameBytesLen: {nameBytesLen}");
+                Console.WriteLine($"[DEBUG] Full nameField as Unicode: '{System.Text.Encoding.Unicode.GetString(nameField)}'");
+
+                string name = "";
+                if (nameBytesLen > 0)
+                {
+                    name = System.Text.Encoding.Unicode.GetString(nameField, 0, nameBytesLen).TrimEnd('\0');
+                }
+                Console.WriteLine($"[DEBUG] DirectoryEntry: '{name}'");
+                
+                // Read other fields
+                byte entryType = br.ReadByte();
+                // Skip to starting sector location (offset 116 in entry)
+                ms.Position = 116;
+                uint startingSector = br.ReadUInt32();
+                ulong streamSize = br.ReadUInt64();
+
+                Console.WriteLine($"[DEBUG] DirectoryEntry: '{name}' (Type: {entryType}, Size: {streamSize})");
+                Console.WriteLine($"[DEBUG] ms.Position at end of entry: {ms.Position}");
+
+                // Ensure we are at the start of the next entry
+                if (ms.Position < 128)
+                {
+                    br.ReadBytes((int)(128 - ms.Position));
+                }
+
+                entries.Add(new DirectoryEntry
+                {
+                    Name = name,
+                    EntryType = entryType,
+                    StartingSectorLocation = startingSector,
+                    StreamSize = streamSize
+                });
+            }
         }
         return entries;
     }

@@ -6,9 +6,15 @@ namespace WvWareNet.Core
     {
         public FileInformationBlock FileInfo { get; set; }
         public List<Section> Sections { get; } = new List<Section>();
-        public List<Footnote> Footnotes { get; } = new List<Footnote>();
         public List<HeaderFooter> Headers { get; } = new List<HeaderFooter>();
         public List<HeaderFooter> Footers { get; } = new List<HeaderFooter>();
+        public List<Footnote> Footnotes { get; } = new List<Footnote>();
+        public List<TextBox> TextBoxes { get; } = new List<TextBox>();
+    }
+
+    public class TextBox
+    {
+        public List<Paragraph> Paragraphs { get; } = new List<Paragraph>();
     }
 
     public class Section

@@ -162,11 +162,24 @@ public class FileInformationBlock
     public int FcPlcfftn { get; set; }
     public uint LcbPlcfftn { get; set; }
 
+    // Text Box properties
+    public int FcPlcftxbxTxt { get; set; }
+    public uint LcbPlcftxbxTxt { get; set; }
+
     public static FileInformationBlock Parse(byte[] wordDocumentStream)
     {
         var fib = new FileInformationBlock();
         using var ms = new System.IO.MemoryStream(wordDocumentStream);
         using var reader = new System.IO.BinaryReader(ms);
+
+        // Read text box properties at their known offsets
+        ms.Position = 0x01F6; // Offset for FcPlcftxbxTxt
+        fib.FcPlcftxbxTxt = reader.ReadInt32();
+        ms.Position = 0x01FA; // Offset for LcbPlcftxbxTxt
+        fib.LcbPlcftxbxTxt = reader.ReadUInt32();
+
+        // Reset to beginning to read other properties
+        ms.Position = 0;
 
         fib.WIdent = reader.ReadUInt16();
         fib.NFib = reader.ReadUInt16();
@@ -190,6 +203,16 @@ public class FileInformationBlock
         ms.Position = 0x1CA; // Example offset for FcPlcfftn (footnote PLCF)
         fib.FcPlcfftn = reader.ReadInt32();
         fib.LcbPlcfftn = reader.ReadUInt32();
+
+        // DEBUG: Print all key FIB fields
+        Console.WriteLine($"[DEBUG] FIB: WIdent={fib.WIdent}, NFib={fib.NFib}, NProduct={fib.NProduct}, Lid={fib.Lid}, PnNext={fib.PnNext}");
+        Console.WriteLine($"[DEBUG] FIB: FcMin={fib.FcMin}, FcMac={fib.FcMac}");
+        Console.WriteLine($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}");
+        Console.WriteLine($"[DEBUG] FIB: FcPlcfbteChpx={fib.FcPlcfbteChpx}, LcbPlcfbteChpx={fib.LcbPlcfbteChpx}");
+        Console.WriteLine($"[DEBUG] FIB: FcPlcfbtePapx={fib.FcPlcfbtePapx}, LcbPlcfbtePapx={fib.LcbPlcfbtePapx}");
+        Console.WriteLine($"[DEBUG] FIB: FcPlcfhdd={fib.FcPlcfhdd}, LcbPlcfhdd={fib.LcbPlcfhdd}");
+        Console.WriteLine($"[DEBUG] FIB: FcPlcfftn={fib.FcPlcfftn}, LcbPlcfftn={fib.LcbPlcfftn}");
+        Console.WriteLine($"[DEBUG] FIB: FcPlcftxbxTxt={fib.FcPlcftxbxTxt}, LcbPlcftxbxTxt={fib.LcbPlcftxbxTxt}");
 
         return fib;
     }

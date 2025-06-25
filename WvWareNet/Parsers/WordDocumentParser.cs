@@ -25,10 +25,19 @@ namespace WvWareNet.Parsers
 
             // Locate WordDocument and Table streams
             var wordDocEntry = entries.Find(e => e.Name == "WordDocument");
-            var tableEntry = entries.Find(e => e.Name == "1Table") ?? entries.Find(e => e.Name == "0Table");
+            var tableEntry = entries.Find(e => e.Name == "1Table") 
+                            ?? entries.Find(e => e.Name == "0Table")
+                            ?? entries.Find(e => e.Name == "Table");
 
             if (wordDocEntry == null || tableEntry == null)
+            {
+                Console.WriteLine("Available directory entries:");
+                foreach (var entry in entries)
+                {
+                    Console.WriteLine($"- {entry.Name} (Type: {entry.EntryType}, Size: {entry.StreamSize})");
+                }
                 throw new InvalidDataException("Required streams not found in CFBF file.");
+            }
 
             // Read stream data
             var wordDocStream = _cfbfParser.ReadStream(wordDocEntry);
@@ -38,6 +47,7 @@ namespace WvWareNet.Parsers
             var fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
 
             // Extract CLX (piece table) data from Table stream using FIB offsets
+            Console.WriteLine($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
             if (fib.FcClx < 0 || fib.LcbClx == 0 || fib.FcClx + fib.LcbClx > tableStream.Length)
                 throw new InvalidDataException("Invalid CLX offsets in FIB.");
 
@@ -278,6 +288,55 @@ namespace WvWareNet.Parsers
                 _documentModel.Headers.Add(new WvWareNet.Core.HeaderFooter { Type = WvWareNet.Core.HeaderFooterType.Default });
             }
 
+            // --- Text Box Extraction ---
+            if (fib.FcPlcftxbxTxt > 0 && fib.LcbPlcftxbxTxt > 0 && 
+                fib.FcPlcftxbxTxt + fib.LcbPlcftxbxTxt <= tableStream.Length)
+            {
+                byte[] plcfTxtBx = new byte[fib.LcbPlcftxbxTxt];
+                Array.Copy(tableStream, fib.FcPlcftxbxTxt, plcfTxtBx, 0, fib.LcbPlcftxbxTxt);
+
+                // Parse PLCF for text boxes
+                using var msPlcf = new System.IO.MemoryStream(plcfTxtBx);
+                using var reader = new System.IO.BinaryReader(msPlcf);
+
+                // Read CP and FC arrays
+                int nTextBoxes = (plcfTxtBx.Length - 4) / 8;  // Each text box has CP and FC
+                int[] cpArray = new int[nTextBoxes + 1];
+                int[] fcArray = new int[nTextBoxes];
+
+                for (int i = 0; i <= nTextBoxes; i++)
+                    cpArray[i] = reader.ReadInt32();
+
+                for (int i = 0; i < nTextBoxes; i++)
+                    fcArray[i] = reader.ReadInt32();
+
+                // Process each text box
+                for (int i = 0; i < nTextBoxes; i++)
+                {
+                    int fcStart = fcArray[i];
+                    int fcEnd = (i < nTextBoxes - 1) ? fcArray[i + 1] : (int)wordDocStream.Length;
+
+                    // Extract text box content
+                    var textBox = new Core.TextBox();
+                    var paragraph = new Core.Paragraph();
+
+                    // Find pieces that overlap with this text box's FC range
+                    for (int p = 0; p < pieceTable.Pieces.Count; p++)
+                    {
+                        var piece = pieceTable.Pieces[p];
+                        if (piece.FcStart < fcEnd && piece.FcEnd > fcStart)
+                        {
+                            // Get text for this piece
+                            string text = pieceTable.GetTextForPiece(p, wordDocMs);
+                            paragraph.Runs.Add(new Core.Run { Text = text });
+                        }
+                    }
+
+                    textBox.Paragraphs.Add(paragraph);
+                    _documentModel.TextBoxes.Add(textBox);
+                }
+            }
+
             // Parse PLCF for footnotes if available
             if (fib.FcPlcfftn > 0 && fib.LcbPlcfftn > 0 && fib.FcPlcfftn + fib.LcbPlcfftn <= tableStream.Length)
             {
@@ -352,6 +411,20 @@ namespace WvWareNet.Parsers
                     }
                 }
             }
+
+            // Add text box content
+            foreach (var textBox in _documentModel.TextBoxes)
+            {
+                foreach (var paragraph in textBox.Paragraphs)
+                {
+                    foreach (var run in paragraph.Runs)
+                    {
+                        textBuilder.Append(run.Text);
+                    }
+                    textBuilder.AppendLine();
+                }
+            }
+
             return textBuilder.ToString();
         }
     }

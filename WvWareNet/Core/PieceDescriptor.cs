@@ -36,4 +36,14 @@ public class PieceDescriptor
     /// Reference to the associated CHPX (character formatting) data
     /// </summary>
     public byte[] Chpx { get; set; }
+
+    /// <summary>
+    /// The starting file position (FC) for this piece
+    /// </summary>
+    public int FcStart { get; set; }
+
+    /// <summary>
+    /// The ending file position (FC) for this piece
+    /// </summary>
+    public int FcEnd { get; set; }
 }
