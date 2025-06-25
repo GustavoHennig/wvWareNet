@@ -327,21 +327,11 @@ namespace WvWareNet.Parsers
                     int fcEnd = (i < nTextBoxes - 1) ? fcArray[i + 1] : (int)wordDocStream.Length;
 
                     // Extract text box content
+                    string text = pieceTable.GetTextForRange(fcStart, fcEnd, wordDocMs);
+
                     var textBox = new Core.TextBox();
                     var paragraph = new Core.Paragraph();
-
-                    // Find pieces that overlap with this text box's FC range
-                    for (int p = 0; p < pieceTable.Pieces.Count; p++)
-                    {
-                        var piece = pieceTable.Pieces[p];
-                        if (piece.FcStart < fcEnd && piece.FcEnd > fcStart)
-                        {
-                            // Get text for this piece
-                            string text = pieceTable.GetTextForPiece(p, wordDocMs);
-                            paragraph.Runs.Add(new Core.Run { Text = text });
-                        }
-                    }
-
+                    paragraph.Runs.Add(new Core.Run { Text = text });
                     textBox.Paragraphs.Add(paragraph);
                     _documentModel.TextBoxes.Add(textBox);
                 }
