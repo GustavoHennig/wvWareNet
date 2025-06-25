@@ -6,6 +6,24 @@ public class FileInformationBlock
     public ushort WIdent { get; set; }
     public ushort NFib { get; set; }
     public ushort NProduct { get; set; }
+    public string? FibVersion
+    {
+        get
+        {
+            return NFib switch
+            {
+                0x0062 => "Word 6",
+                0x0063 => "Word 6.1",
+                0x0065 => "Word 95",
+                0x0076 => "Word 97",
+                0x00C1 => "Word 97/2000",
+                0x00D9 => "Word 2000",
+                0x0101 => "Word 2003",
+                0x0112 => "Word 2007",
+                _ => null
+            };
+        }
+    }
     
     // Language ID
     public ushort Lid { get; set; }
@@ -186,21 +204,59 @@ public class FileInformationBlock
         fib.NProduct = reader.ReadUInt16();
         fib.Lid = reader.ReadUInt16();
         fib.PnNext = reader.ReadInt16();
-        // Skipping flags and other fields for brevity; add as needed for full implementation
 
-        ms.Position = 0x18; // Example offset for FcMin
+        // Parse flag bits
+        ushort flags = reader.ReadUInt16();
+        fib.FDot = (flags & 0x0001) != 0;
+        fib.FGlsy = (flags & 0x0002) != 0;
+        fib.FComplex = (flags & 0x0004) != 0;
+        fib.FHasPic = (flags & 0x0008) != 0;
+        fib.CQuickSaves = (byte)((flags >> 4) & 0x000F);
+        fib.FEncrypted = (flags & 0x0100) != 0;
+        fib.FWhichTblStm = (flags & 0x0200) != 0;
+        fib.FReadOnlyRecommended = (flags & 0x0400) != 0;
+        fib.FWriteReservation = (flags & 0x0800) != 0;
+        fib.FExtChar = (flags & 0x1000) != 0;
+        fib.FLoadOverride = (flags & 0x2000) != 0;
+        fib.FFarEast = (flags & 0x4000) != 0;
+        fib.FCrypto = (flags & 0x8000) != 0;
+
+        fib.NFibBack = reader.ReadUInt16();
+        fib.LKey = reader.ReadUInt32();
+
+        fib.Envr = reader.ReadByte();
+        byte envrFlags = reader.ReadByte();
+        fib.FMac = (envrFlags & 0x01) != 0;
+        fib.FEmptySpecial = (envrFlags & 0x02) != 0;
+        fib.FLoadOverridePage = (envrFlags & 0x04) != 0;
+        fib.FFutureSavedUndo = (envrFlags & 0x08) != 0;
+        fib.FWord97Saved = (envrFlags & 0x10) != 0;
+        fib.FSpare0 = (byte)(envrFlags >> 5);
+
+        fib.Chse = reader.ReadUInt16();
+        fib.ChsTables = reader.ReadUInt16();
+
+        ms.Position = 0x18; // Start of FcMin
         fib.FcMin = reader.ReadUInt32();
         fib.FcMac = reader.ReadUInt32();
+
+        ms.Position = 0x00FA; // FcPlcfbteChpx
+        fib.FcPlcfbteChpx = reader.ReadInt32();
+        fib.LcbPlcfbteChpx = reader.ReadUInt32();
+
+        ms.Position = 0x0102; // FcPlcfbtePapx
+        fib.FcPlcfbtePapx = reader.ReadInt32();
+        fib.LcbPlcfbtePapx = reader.ReadUInt32();
 
         ms.Position = 0x1A2; // Example offset for FcClx
         fib.FcClx = reader.ReadInt32();
         fib.LcbClx = reader.ReadUInt32();
 
-        ms.Position = 0x1E2; // Example offset for FcPlcfhdd (header/footer PLCF)
+        ms.Position = 0x00F2; // FcPlcfhdd (header/footer PLCF)
         fib.FcPlcfhdd = reader.ReadInt32();
         fib.LcbPlcfhdd = reader.ReadUInt32();
 
-        ms.Position = 0x1CA; // Example offset for FcPlcfftn (footnote PLCF)
+        ms.Position = 0x012A; // FcPlcffldFtn (footnote PLCF)
         fib.FcPlcfftn = reader.ReadInt32();
         fib.LcbPlcfftn = reader.ReadUInt32();
 

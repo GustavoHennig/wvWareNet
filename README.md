@@ -31,6 +31,11 @@ See `REWRITE_PLAN.md` for the detailed rewrite roadmap.
 - Built using .NET 9
 - Unit tests are not a priority during early stages
 
+### Compatibility
+
+The parser attempts to read documents produced by Word 6 through Word 2007.
+Encrypted files are detected and will trigger a clear error message.
+
 ## Original Project
 
 - Based on: [wvWave on SourceForge](https://sourceforge.net/projects/wvware/)
