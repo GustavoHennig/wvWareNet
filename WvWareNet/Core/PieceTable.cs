@@ -30,7 +30,7 @@ public class PieceTable
         }
     }
 
-    public void Parse(byte[] data)
+    public void Parse(byte[] data, uint fcMin, uint fcMac)
     {
         _pieces.Clear();
         if (data == null || data.Length == 0)
@@ -63,9 +63,12 @@ public class PieceTable
             byte clxType = data[i];
             if (clxType == 0x02)
             {
-                // This is the PlcPcd (piece table) block
-                plcPcdOffset = i + 1;
-                plcPcdLength = data.Length - plcPcdOffset;
+                // This is the Pcdt block. The next four bytes give the
+                // length of the PlcPcd structure that follows.
+                if (i + 5 > data.Length)
+                    break;
+                plcPcdLength = BitConverter.ToInt32(data, i + 1);
+                plcPcdOffset = i + 5;
                 break;
             }
             else if (clxType == 0x01)
@@ -95,53 +98,45 @@ public class PieceTable
             using var stream = new MemoryStream(data, plcPcdOffset, plcPcdLength);
             using var reader = new BinaryReader(stream);
 
-            // Read the character position array
-            uint cpCount = reader.ReadUInt32();
-            Console.WriteLine($"[DEBUG] PieceTable.Parse: cpCount={cpCount}");
-            int cpArrayBytes = (int)cpCount * 4;
-            int pieceDescriptorBytes = (int)(cpCount - 1) * 9;
-            int expectedMinLength = 4 + cpArrayBytes + pieceDescriptorBytes;
-            Console.WriteLine($"[DEBUG] PieceTable.Parse: expectedMinLength={expectedMinLength}, plcPcdLength={plcPcdLength}");
-
-        if (expectedMinLength > plcPcdLength)
-        {
-            // Fallback for small/invalid CLX - create a single piece spanning the entire document
-            _logger.LogWarning($"Invalid CLX size - expected {expectedMinLength} bytes, got {plcPcdLength}. Using fallback single-piece table.");
-            
-            var descriptor = new PieceDescriptor
+            // The piece table (PlcPcd) consists of an array of character
+            // positions followed by an array of piece descriptors.  The
+            // number of pieces can be derived from the total length.
+            int pieceCount = (plcPcdLength - 4) / 12;
+            if (pieceCount <= 0)
             {
-                FilePosition = 0,
-                IsUnicode = true,
-                HasFormatting = false,
-                CpStart = 0,
-                CpEnd = int.MaxValue // Will be adjusted when actual text length is known
-            };
-            _pieces.Add(descriptor);
-            return;
-        }
-
-            var cpArray = new int[cpCount];
-            for (int j = 0; j < cpCount; j++)
-            {
-                cpArray[j] = reader.ReadInt32();
-            }
-
-            // Read piece descriptors and assign cpStart/cpEnd
-            for (int j = 0; j < cpCount - 1; j++)
-            {
+                _logger.LogWarning($"Invalid piece table length {plcPcdLength}. Using fallback single-piece table.");
                 var descriptor = new PieceDescriptor
                 {
-                    FilePosition = reader.ReadUInt32(),
+                    FilePosition = fcMin,
+                    IsUnicode = true,
+                    HasFormatting = false,
+                    CpStart = 0,
+                    CpEnd = (int)(fcMac - fcMin)
                 };
+                _pieces.Add(descriptor);
+                return;
+            }
 
-                // Read flags from the last byte of the descriptor
-                byte flags = reader.ReadByte();
-                descriptor.IsUnicode = (flags & 0x40) != 0;
-                descriptor.HasFormatting = (flags & 0x80) != 0;
-                descriptor.ReservedFlags = (byte)(flags & 0x3F); // Lower 6 bits are reserved
+            var cpArray = new int[pieceCount + 1];
+            for (int j = 0; j < pieceCount + 1; j++)
+                cpArray[j] = reader.ReadInt32();
 
-                descriptor.CpStart = cpArray[j];
-                descriptor.CpEnd = cpArray[j + 1];
+            for (int j = 0; j < pieceCount; j++)
+            {
+                uint fcValue = reader.ReadUInt32();
+                reader.ReadUInt32(); // skip PRM for now
+
+                bool isUnicode = (fcValue & 0x40000000) != 0;
+                uint fc = fcValue & 0x3FFFFFFF;
+
+                var descriptor = new PieceDescriptor
+                {
+                    FilePosition = fc,
+                    IsUnicode = isUnicode,
+                    HasFormatting = false,
+                    CpStart = cpArray[j],
+                    CpEnd = cpArray[j + 1]
+                };
 
                 _pieces.Add(descriptor);
             }
@@ -172,12 +167,52 @@ public class PieceTable
 
         if (piece.IsUnicode)
         {
-            return new string(reader.ReadChars((int)length / 2));
+            // When the piece is marked as Unicode the text is stored as
+            // little-endian UTF-16. BinaryReader by default uses UTF-8
+            // which produces garbage characters.  Read the raw bytes and
+            // decode them explicitly using Encoding.Unicode.
+            byte[] bytes = reader.ReadBytes((int)length);
+            var text = System.Text.Encoding.Unicode.GetString(bytes);
+            return CleanText(text);
         }
         else
         {
+            // Non Unicode pieces are stored using the Windows code page of
+            // the document.  CP1252 is a sensible default for Western
+            // documents and matches the behaviour of the original wvWare
+            // library.
             byte[] bytes = reader.ReadBytes((int)length);
-            return System.Text.Encoding.Default.GetString(bytes);
+            var text = System.Text.Encoding.GetEncoding(1252).GetString(bytes);
+            return CleanText(text);
         }
+    }
+
+    private static string CleanText(string input)
+    {
+        var sb = new System.Text.StringBuilder(input.Length);
+        foreach (char c in input)
+        {
+            if (c == '\r' || c == '\n' || c == '\t' || c >= ' ')
+                sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Replace the current table with a single Unicode piece using the
+    /// supplied file positions. Used as a fallback when the piece table is
+    /// corrupt or not present.
+    /// </summary>
+    public void SetSinglePiece(uint fcMin, uint fcMac)
+    {
+        _pieces.Clear();
+        _pieces.Add(new PieceDescriptor
+        {
+            FilePosition = fcMin,
+            IsUnicode = false,
+            HasFormatting = false,
+            CpStart = 0,
+            CpEnd = (int)(fcMac - fcMin)
+        });
     }
 }

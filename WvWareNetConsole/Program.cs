@@ -8,6 +8,7 @@ namespace WvWareNetConsole
     {
         static void Main(string[] args)
         {
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
             if (args.Length == 0)
             {
                 Console.WriteLine("Usage: WvWareNetConsole <path_to_doc_file>");

@@ -62,7 +62,12 @@ namespace WvWareNet.Parsers
             // Create PieceTable and parse
             var logger = new WvWareNet.Utilities.ConsoleLogger();
             var pieceTable = new WvWareNet.Core.PieceTable(logger);
-            pieceTable.Parse(clxData);
+            pieceTable.Parse(clxData, fib.FcMin, fib.FcMac);
+            if (pieceTable.Pieces.Count == 1 && pieceTable.Pieces[0].FilePosition >= wordDocStream.Length)
+            {
+                logger.LogWarning("Invalid piece table detected, falling back to FcMin/FcMac range.");
+                pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac);
+            }
 
             // Extract CHPX (character formatting) data from Table stream using PLCFCHPX
             // PLCFCHPX location is in FIB: FcPlcfbteChpx, LcbPlcfbteChpx
