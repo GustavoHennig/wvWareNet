@@ -23,35 +23,53 @@ namespace WvWareNet.Parsers
             // Parse directory entries
             var entries = _cfbfParser.ParseDirectoryEntries();
 
-            // Locate WordDocument and Table streams
+            // Locate WordDocument stream
             var wordDocEntry = entries.Find(e => 
                 e.Name.Contains("WordDocument", StringComparison.OrdinalIgnoreCase));
-            var tableEntry = entries.Find(e => 
-                e.Name.Contains("1Table", StringComparison.OrdinalIgnoreCase)) 
-                ?? entries.Find(e => e.Name.Contains("0Table", StringComparison.OrdinalIgnoreCase))
-                ?? entries.Find(e => e.Name.Contains("Table", StringComparison.OrdinalIgnoreCase));
 
-            if (wordDocEntry == null || tableEntry == null)
+            if (wordDocEntry == null)
             {
                 Console.WriteLine("Available directory entries:");
                 foreach (var entry in entries)
                 {
                     Console.WriteLine($"- {entry.Name} (Type: {entry.EntryType}, Size: {entry.StreamSize})");
                 }
-                throw new InvalidDataException($"Required streams not found in CFBF file. Looking for WordDocument and Table streams.");
+                throw new InvalidDataException("Required WordDocument stream not found in CFBF file.");
+            }
+
+            // For Word95 files, try to proceed without Table stream if not found
+            var tableEntry = entries.Find(e => 
+                e.Name.Contains("1Table", StringComparison.OrdinalIgnoreCase)) 
+                ?? entries.Find(e => e.Name.Contains("0Table", StringComparison.OrdinalIgnoreCase))
+                ?? entries.Find(e => e.Name.Contains("Table", StringComparison.OrdinalIgnoreCase));
+
+            if (tableEntry == null && _documentModel?.FileInfo?.FibVersion?.StartsWith("Word95") == true)
+            {
+                Console.WriteLine("[WARN] Table stream not found in Word95 document, attempting to parse with reduced functionality");
+            }
+            else if (tableEntry == null)
+            {
+                throw new InvalidDataException("Required Table stream not found in CFBF file.");
             }
 
             Console.WriteLine($"[DEBUG] Found WordDocument stream: {wordDocEntry.Name}");
-            Console.WriteLine($"[DEBUG] Found Table stream: {tableEntry.Name}");
-
+            
             // Read stream data
             var wordDocStream = _cfbfParser.ReadStream(wordDocEntry);
-            var tableStream = _cfbfParser.ReadStream(tableEntry);
+            byte[] tableStream = null;
+            
+            if (tableEntry != null)
+            {
+                Console.WriteLine($"[DEBUG] Found Table stream: {tableEntry.Name}");
+                tableStream = _cfbfParser.ReadStream(tableEntry);
+            }
 
             // Parse FileInformationBlock (FIB)
             var fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
+            _documentModel = new WvWareNet.Core.DocumentModel();
+            _documentModel.FileInfo = fib;
 
-            if (fib.FEncrypted || fib.FCrypto)
+            if ((fib.FEncrypted || fib.FCrypto) && fib.FibVersion?.StartsWith("Word95") != true)
                 throw new NotSupportedException("Encrypted Word documents are not supported.");
 
             if (fib.FibVersion == null)
@@ -59,21 +77,31 @@ namespace WvWareNet.Parsers
             else
                 Console.WriteLine($"[INFO] Detected Word version: {fib.FibVersion}");
 
-            // Extract CLX (piece table) data from Table stream using FIB offsets
-            Console.WriteLine($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
-            if (fib.FcClx < 0 || fib.LcbClx == 0 || fib.FcClx + fib.LcbClx > tableStream.Length)
-                throw new InvalidDataException("Invalid CLX offsets in FIB.");
-
-            byte[] clxData = new byte[fib.LcbClx];
-            Array.Copy(tableStream, fib.FcClx, clxData, 0, fib.LcbClx);
-
-            // Create PieceTable and parse
             var logger = new WvWareNet.Utilities.ConsoleLogger();
             var pieceTable = new WvWareNet.Core.PieceTable(logger);
-            pieceTable.Parse(clxData, fib.FcMin, fib.FcMac);
-            if (pieceTable.Pieces.Count == 1 && pieceTable.Pieces[0].FcStart >= wordDocStream.Length)
+
+            if (tableStream != null)
             {
-                logger.LogWarning("Invalid piece table detected, falling back to FcMin/FcMac range.");
+                // Extract CLX (piece table) data from Table stream using FIB offsets
+                Console.WriteLine($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
+                if (fib.FcClx < 0 || fib.LcbClx == 0 || fib.FcClx + fib.LcbClx > tableStream.Length)
+                    throw new InvalidDataException("Invalid CLX offsets in FIB.");
+
+                byte[] clxData = new byte[fib.LcbClx];
+                Array.Copy(tableStream, fib.FcClx, clxData, 0, fib.LcbClx);
+
+                // Create PieceTable and parse
+                pieceTable.Parse(clxData, fib.FcMin, fib.FcMac);
+                if (pieceTable.Pieces.Count == 1 && pieceTable.Pieces[0].FcStart >= wordDocStream.Length)
+                {
+                    logger.LogWarning("Invalid piece table detected, falling back to FcMin/FcMac range.");
+                    pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac);
+                }
+            }
+            else
+            {
+                // Fallback for Word95 without Table stream - treat as single piece
+                logger.LogWarning("No Table stream found, treating document as single piece");
                 pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac);
             }
 
@@ -402,16 +430,28 @@ namespace WvWareNet.Parsers
 
             foreach (var section in _documentModel.Sections)
             {
-                // Optionally add section breaks or properties here
-                // textBuilder.AppendLine("--- SECTION ---"); 
-
                 foreach (var paragraph in section.Paragraphs)
                 {
+                    bool isListItem = paragraph.Runs.Any(r => 
+                        (r.Text?.StartsWith("•") ?? false) ||
+                        (r.Text?.StartsWith("-") ?? false));
+
+                    if (isListItem)
+                    {
+                        textBuilder.Append("•\t"); // Add bullet point and tab
+                    }
+
                     foreach (var run in paragraph.Runs)
                     {
-                        textBuilder.Append(run.Text);
+                        // Remove existing bullets/dashes if they exist
+                        string text = run.Text;
+                        if (isListItem && (text.StartsWith("•") || text.StartsWith("-")))
+                        {
+                            text = text.Substring(1).TrimStart();
+                        }
+                        textBuilder.Append(text);
                     }
-                    // Add a newline after each paragraph, unless it's the last run already contains one
+
                     if (paragraph.Runs.Count > 0 && !string.IsNullOrEmpty(paragraph.Runs[^1].Text) && 
                         !(paragraph.Runs[^1].Text.EndsWith("\r\n") || paragraph.Runs[^1].Text.EndsWith("\n") || paragraph.Runs[^1].Text.EndsWith("\r")))
                     {
@@ -433,7 +473,8 @@ namespace WvWareNet.Parsers
                 }
             }
 
-            return textBuilder.ToString();
+            // Replace vertical tab (0x0B) with newline for soft line breaks
+            return textBuilder.ToString().Replace('\v', '\n');
         }
     }
 }

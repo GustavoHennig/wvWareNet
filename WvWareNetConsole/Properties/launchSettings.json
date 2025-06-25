@@ -2,7 +2,8 @@
   "profiles": {
     "WvWareNetConsole": {
       "commandName": "Project",
-      "commandLineArgs": "news-example.doc"
+      "commandLineArgs": "a-idade-media.word95.doc"
+      //news-example.doc
     }
   }
 }

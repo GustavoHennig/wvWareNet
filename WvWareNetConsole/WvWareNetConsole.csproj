@@ -1,11 +1,28 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <None Remove="a-idade-media.word95.doc" />
+    <None Remove="file-sample_100kB.doc" />
+    <None Remove="file-sample_libreoffice.doc" />
     <None Remove="news-example.doc" />
+    <None Remove="test.doc" />
+    <None Remove="test2.doc" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="a-idade-media.word95.doc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="file-sample_libreoffice.doc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="news-example.doc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="test.doc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="test2.doc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
