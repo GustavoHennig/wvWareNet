@@ -24,10 +24,12 @@ namespace WvWareNet.Parsers
             var entries = _cfbfParser.ParseDirectoryEntries();
 
             // Locate WordDocument and Table streams
-            var wordDocEntry = entries.Find(e => e.Name == "WordDocument");
-            var tableEntry = entries.Find(e => e.Name == "1Table") 
-                            ?? entries.Find(e => e.Name == "0Table")
-                            ?? entries.Find(e => e.Name == "Table");
+            var wordDocEntry = entries.Find(e => 
+                e.Name.Contains("WordDocument", StringComparison.OrdinalIgnoreCase));
+            var tableEntry = entries.Find(e => 
+                e.Name.Contains("1Table", StringComparison.OrdinalIgnoreCase)) 
+                ?? entries.Find(e => e.Name.Contains("0Table", StringComparison.OrdinalIgnoreCase))
+                ?? entries.Find(e => e.Name.Contains("Table", StringComparison.OrdinalIgnoreCase));
 
             if (wordDocEntry == null || tableEntry == null)
             {
@@ -36,8 +38,11 @@ namespace WvWareNet.Parsers
                 {
                     Console.WriteLine($"- {entry.Name} (Type: {entry.EntryType}, Size: {entry.StreamSize})");
                 }
-                throw new InvalidDataException("Required streams not found in CFBF file.");
+                throw new InvalidDataException($"Required streams not found in CFBF file. Looking for WordDocument and Table streams.");
             }
+
+            Console.WriteLine($"[DEBUG] Found WordDocument stream: {wordDocEntry.Name}");
+            Console.WriteLine($"[DEBUG] Found Table stream: {tableEntry.Name}");
 
             // Read stream data
             var wordDocStream = _cfbfParser.ReadStream(wordDocEntry);

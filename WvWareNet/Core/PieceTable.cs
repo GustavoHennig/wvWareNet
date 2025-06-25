@@ -103,10 +103,22 @@ public class PieceTable
             int expectedMinLength = 4 + cpArrayBytes + pieceDescriptorBytes;
             Console.WriteLine($"[DEBUG] PieceTable.Parse: expectedMinLength={expectedMinLength}, plcPcdLength={plcPcdLength}");
 
-            if (expectedMinLength > plcPcdLength)
+        if (expectedMinLength > plcPcdLength)
+        {
+            // Fallback for small/invalid CLX - create a single piece spanning the entire document
+            _logger.LogWarning($"Invalid CLX size - expected {expectedMinLength} bytes, got {plcPcdLength}. Using fallback single-piece table.");
+            
+            var descriptor = new PieceDescriptor
             {
-                throw new InvalidDataException($"PieceTable.Parse: Not enough data for piece table: expected {expectedMinLength}, got {plcPcdLength}");
-            }
+                FilePosition = 0,
+                IsUnicode = true,
+                HasFormatting = false,
+                CpStart = 0,
+                CpEnd = int.MaxValue // Will be adjusted when actual text length is known
+            };
+            _pieces.Add(descriptor);
+            return;
+        }
 
             var cpArray = new int[cpCount];
             for (int j = 0; j < cpCount; j++)
