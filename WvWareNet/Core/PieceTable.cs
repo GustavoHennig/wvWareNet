@@ -163,31 +163,48 @@ public class PieceTable
             throw new ArgumentOutOfRangeException(nameof(index));
 
         var piece = _pieces[index];
-        using var reader = new BinaryReader(documentStream);
-        documentStream.Seek(piece.FcStart, SeekOrigin.Begin);
+        return GetTextForRange(piece.FcStart, piece.FcEnd, documentStream, piece.IsUnicode);
+    }
 
-        uint length = (uint)(piece.FcEnd - piece.FcStart);
+    /// <summary>
+    /// Retrieve text for an arbitrary file position range. The range may span
+    /// multiple pieces and does not need to align to piece boundaries.
+    /// </summary>
+    public string GetTextForRange(int fcStart, int fcEnd, Stream documentStream)
+    {
+        if (fcEnd <= fcStart)
+            return string.Empty;
 
-        if (piece.IsUnicode)
+        var sb = new System.Text.StringBuilder();
+
+        foreach (var piece in _pieces)
         {
-            // When the piece is marked as Unicode the text is stored as
-            // little-endian UTF-16. BinaryReader by default uses UTF-8
-            // which produces garbage characters.  Read the raw bytes and
-            // decode them explicitly using Encoding.Unicode.
-            byte[] bytes = reader.ReadBytes((int)length);
-            var text = System.Text.Encoding.Unicode.GetString(bytes);
-            return CleanText(text);
+            int start = Math.Max(fcStart, piece.FcStart);
+            int end = Math.Min(fcEnd, piece.FcEnd);
+            if (start >= end)
+                continue;
+
+            sb.Append(GetTextForRange(start, end, documentStream, piece.IsUnicode));
         }
-        else
-        {
-            // Non Unicode pieces are stored using the Windows code page of
-            // the document.  CP1252 is a sensible default for Western
-            // documents and matches the behaviour of the original wvWare
-            // library.
-            byte[] bytes = reader.ReadBytes((int)length);
-            var text = System.Text.Encoding.GetEncoding(1252).GetString(bytes);
-            return CleanText(text);
-        }
+
+        return sb.ToString();
+    }
+
+    private string GetTextForRange(int fcStart, int fcEnd, Stream documentStream, bool isUnicode)
+    {
+        int length = fcEnd - fcStart;
+        if (length <= 0)
+            return string.Empty;
+
+        using var reader = new BinaryReader(documentStream, System.Text.Encoding.UTF8, leaveOpen: true);
+        documentStream.Seek(fcStart, SeekOrigin.Begin);
+        byte[] bytes = reader.ReadBytes(length);
+
+        string text = isUnicode
+            ? System.Text.Encoding.Unicode.GetString(bytes)
+            : System.Text.Encoding.GetEncoding(1252).GetString(bytes);
+
+        return CleanText(text);
     }
 
     private static string CleanText(string input)
