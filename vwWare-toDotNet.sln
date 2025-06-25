@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WvWaveDotNet", "WvWareNet\W
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WvWareNetConsole", "WvWareNetConsole\WvWareNetConsole.csproj", "{5AC48800-D100-7AF9-2372-03C94782B2BE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WvWareNet.Tests", "WvWareNet.Tests\WvWareNet.Tests.csproj", "{5EC22FC5-D7F7-4E53-8C9F-7B81FF937C78}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,10 +19,14 @@ Global
 		{83B35ACB-8A06-0390-EC58-DC462B5C41A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{83B35ACB-8A06-0390-EC58-DC462B5C41A7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5AC48800-D100-7AF9-2372-03C94782B2BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5AC48800-D100-7AF9-2372-03C94782B2BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5AC48800-D100-7AF9-2372-03C94782B2BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5AC48800-D100-7AF9-2372-03C94782B2BE}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
+                {5AC48800-D100-7AF9-2372-03C94782B2BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {5AC48800-D100-7AF9-2372-03C94782B2BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {5AC48800-D100-7AF9-2372-03C94782B2BE}.Release|Any CPU.Build.0 = Release|Any CPU
+                {5EC22FC5-D7F7-4E53-8C9F-7B81FF937C78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {5EC22FC5-D7F7-4E53-8C9F-7B81FF937C78}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {5EC22FC5-D7F7-4E53-8C9F-7B81FF937C78}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {5EC22FC5-D7F7-4E53-8C9F-7B81FF937C78}.Release|Any CPU.Build.0 = Release|Any CPU
+        EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
