@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using WvWareNet.Parsers;
 using WvWareNet.Utilities;
 
@@ -7,6 +8,11 @@ namespace WvWareNet;
 public class WvDocExtractor
 {
     private readonly ILogger _logger;
+
+    static WvDocExtractor()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+    }
 
     public WvDocExtractor(ILogger logger)
     {

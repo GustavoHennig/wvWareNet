@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using WvWareNet.Parsers;
 
 namespace WvWareNet.Parsers
@@ -465,10 +466,13 @@ namespace WvWareNet.Parsers
                         textBuilder.Append("•\t"); // Add bullet point and tab
                     }
 
-                    foreach (var run in paragraph.Runs)
-                    {
-                        // Remove existing bullets/dashes if they exist
-                        string text = run.Text;
+foreach (var run in paragraph.Runs)
+{
+    // Filter out embedded OLE metadata streams
+    if (run.Text != null && (run.Text.StartsWith("EMBED ") || run.Text.StartsWith("HYPERLINK ")))
+        continue;
+    // Remove existing bullets/dashes if they exist
+    string text = run.Text;
                         if (isListItem && (text.StartsWith("•") || text.StartsWith("-")))
                         {
                             text = text.Substring(1).TrimStart();
@@ -484,6 +488,23 @@ namespace WvWareNet.Parsers
                 }
             }
 
+            // Normalize and split lines, filter out metadata and deduplicate globally
+            var rawText = textBuilder.ToString().Replace('\v', '\n');
+            var lines = rawText.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var unique = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var output = new System.Text.StringBuilder();
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                    continue;
+                if (trimmed.StartsWith("EMBED ", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("HYPERLINK ", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (unique.Add(trimmed))
+                    output.AppendLine(trimmed);
+            }
+            
             // Add text box content
             foreach (var textBox in _documentModel.TextBoxes)
             {
