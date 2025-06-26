@@ -45,3 +45,22 @@ Encrypted files are detected and will trigger a clear error message.
 ## License
 
 This project is based on the original wvWave, licensed under the GNU GPL. See COPYING for details.
+
+## Running Tests
+
+To run the tests for this project:
+
+1. Restore dependencies:
+   ```
+   dotnet restore
+   ```
+
+2. Run the tests:
+   ```
+   dotnet test
+   ```
+
+3. Optionally, generate code coverage reports:
+   ```
+   dotnet test --collect:"XPlat Code Coverage"
+   ```

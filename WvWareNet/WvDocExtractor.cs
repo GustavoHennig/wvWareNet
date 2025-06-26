@@ -55,7 +55,7 @@ public class WvDocExtractor
         using var fileStream = new MemoryStream(fileData);
         var cfbfParser = new CompoundFileBinaryFormatParser(fileStream);
         
-        var wordDocumentParser = new WordDocumentParser(cfbfParser);
+        var wordDocumentParser = new WordDocumentParser(cfbfParser, _logger);
         wordDocumentParser.ParseDocument(password);
 
         return wordDocumentParser.ExtractText();

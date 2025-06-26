@@ -74,10 +74,10 @@ public class PieceTable
             else if (clxType == 0x01)
             {
                 // This is a Prc (property modifier) block, skip it
-                if (i + 5 > data.Length)
+                if (i + 3 > data.Length)
                     break;
-                int prcSize = BitConverter.ToInt32(data, i + 1);
-                i += 1 + 4 + prcSize;
+                ushort prcSize = BitConverter.ToUInt16(data, i + 1);
+                i += 1 + 2 + prcSize;
             }
             else
             {
@@ -102,19 +102,12 @@ public class PieceTable
             // The piece table (PlcPcd) consists of an array of character
             // positions followed by an array of piece descriptors.  The
             // number of pieces can be derived from the total length.
-            int pieceCount = (plcPcdLength - 4) / 12;
+            int numCps = (plcPcdLength - 4) / 4; // Each CP is 4 bytes
+            int pieceCount = (numCps - 1) / 2;
             if (pieceCount <= 0)
             {
                 _logger.LogWarning($"Invalid piece table length {plcPcdLength}. Using fallback single-piece table.");
-                var descriptor = new PieceDescriptor
-                {
-                    FilePosition = fcMin,
-                    IsUnicode = true,
-                    HasFormatting = false,
-                    CpStart = 0,
-                    CpEnd = (int)(fcMac - fcMin)
-                };
-                _pieces.Add(descriptor);
+                SetSinglePiece(fcMin, fcMac, nFib);
                 return;
             }
 

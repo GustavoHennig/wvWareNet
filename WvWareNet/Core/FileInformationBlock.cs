@@ -253,7 +253,7 @@ public class FileInformationBlock
         fib.FcPlcfbtePapx = reader.ReadInt32();
         fib.LcbPlcfbtePapx = reader.ReadUInt32();
 
-        ms.Position = 0x1A2; // Example offset for FcClx
+        ms.Position = 0x00A4; // FcClx
         fib.FcClx = reader.ReadInt32();
         fib.LcbClx = reader.ReadUInt32();
 
