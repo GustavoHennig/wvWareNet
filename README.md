@@ -31,6 +31,7 @@ See `REWRITE_PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for cur
 - No external dependencies unless absolutely necessary
 - Built using .NET 9
 - Unit tests are not a priority during early stages
+- IMPORTANT: When changing the code, make sure the md files are properly updated.
 
 ### Compatibility
 

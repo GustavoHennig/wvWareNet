@@ -33,16 +33,27 @@ namespace WvWareNet.Parsers
 
             if (wordDocEntry == null)
             {
-                Console.WriteLine("Available directory entries:");
+                _logger.LogError("Required WordDocument stream not found in CFBF file. Available directory entries:");
                 foreach (var entry in entries)
                 {
-                    Console.WriteLine($"- {entry.Name} (Type: {entry.EntryType}, Size: {entry.StreamSize})");
+                    _logger.LogInfo($"- {entry.Name} (Type: {entry.EntryType}, Size: {entry.StreamSize})");
                 }
                 throw new InvalidDataException("Required WordDocument stream not found in CFBF file.");
             }
+            _logger.LogInfo($"[DEBUG] WordDocument Entry: Name='{wordDocEntry.Name}', StartingSectorLocation={wordDocEntry.StartingSectorLocation}, StreamSize={wordDocEntry.StreamSize}");
 
             // Read stream data
             var wordDocStream = _cfbfParser.ReadStream(wordDocEntry);
+            
+            // Log the first 32 bytes of the WordDocument stream for debugging
+            _logger.LogInfo($"[DEBUG] WordDocument stream length: {wordDocStream.Length}");
+            if (wordDocStream.Length >= 32)
+            {
+                var headerBytes = new byte[32];
+                Array.Copy(wordDocStream, 0, headerBytes, 0, 32);
+                _logger.LogInfo($"[DEBUG] WordDocument stream header: {BitConverter.ToString(headerBytes).Replace("-", " ")}");
+            }
+
 
             // Parse FIB early to detect Word95 before Table stream check
             var fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
@@ -133,7 +144,15 @@ namespace WvWareNet.Parsers
 
             if (clxData != null && clxData.Length > 0)
             {
+                _logger.LogInfo($"[DEBUG] Parsing piece table with CLX data (size: {clxData.Length}), FcMin: {fib.FcMin}, FcMac: {fib.FcMac}, NFib: {fib.NFib}");
                 pieceTable.Parse(clxData, fib.FcMin, fib.FcMac, fib.NFib);
+                
+                _logger.LogInfo($"[DEBUG] Piece table parsed. Number of pieces: {pieceTable.Pieces.Count}");
+                foreach (var piece in pieceTable.Pieces)
+                {
+                    _logger.LogInfo($"[DEBUG]   - Piece: CpStart={piece.CpStart}, CpEnd={piece.CpEnd}, FcStart={piece.FcStart}, IsUnicode={piece.IsUnicode}");
+                }
+
                 if (pieceTable.Pieces.Count == 1 && pieceTable.Pieces[0].FcStart >= wordDocStream.Length)
                 {
                     _logger.LogWarning("Invalid piece table detected, falling back to FcMin/FcMac range.");
@@ -287,6 +306,7 @@ namespace WvWareNet.Parsers
                 for (int i = 0; i < pieceTable.Pieces.Count; i++)
                 {
                     string text = pieceTable.GetTextForPiece(i, wordDocMs);
+                    _logger.LogInfo($"[DEBUG] Extracted text from piece {i}: \"{text.Replace("\r", "\\r").Replace("\n", "\\n")}\"");
 
                     var chpx = pieceTable.Pieces[i].Chpx;
                     var charProps = new WvWareNet.Core.CharacterProperties();
@@ -522,21 +542,30 @@ namespace WvWareNet.Parsers
                     output.AppendLine(trimmed);
             }
             
-            // Add text box content
+            // Add text box content with filtering and deduplication
+            var textBoxLines = new List<string>();
             foreach (var textBox in _documentModel.TextBoxes)
             {
                 foreach (var paragraph in textBox.Paragraphs)
                 {
                     foreach (var run in paragraph.Runs)
                     {
-                        textBuilder.Append(run.Text);
+                        if (run.Text == null) continue;
+                        var trimmed = run.Text.Trim();
+                        if (string.IsNullOrWhiteSpace(trimmed)) continue;
+                        if (trimmed.StartsWith("EMBED ", StringComparison.OrdinalIgnoreCase) ||
+                            trimmed.StartsWith("HYPERLINK ", StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        if (unique.Add(trimmed))
+                            textBoxLines.Add(trimmed);
                     }
-                    textBuilder.AppendLine();
                 }
             }
+            foreach (var line in textBoxLines)
+                output.AppendLine(line);
 
             // Replace vertical tab (0x0B) with newline for soft line breaks
-            return textBuilder.ToString().Replace('\v', '\n');
+            return output.ToString().Replace('\v', '\n');
         }
     }
 }

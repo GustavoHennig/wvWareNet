@@ -103,7 +103,7 @@ public class CompoundFileBinaryFormatParser
         using var dirStream = new MemoryStream();
         foreach (uint sector in dirChain)
         {
-            long sectorOffset = 512 + (sector * _sectorSize);
+            long sectorOffset = (sector + 1) * _sectorSize;
             _reader.BaseStream.Seek(sectorOffset, SeekOrigin.Begin);
             byte[] data = _reader.ReadBytes((int)_sectorSize);
             dirStream.Write(data, 0, data.Length);
@@ -181,21 +181,43 @@ public class CompoundFileBinaryFormatParser
 
     public byte[] ReadStream(DirectoryEntry entry)
     {
+        Console.WriteLine($"[DEBUG] Reading stream: {entry.Name}, StartingSector={entry.StartingSectorLocation}, StreamSize={entry.StreamSize}");
         List<uint> sectorChain = GetFatChain(entry.StartingSectorLocation);
+        Console.WriteLine($"[DEBUG] Sector chain for {entry.Name}: {string.Join(", ", sectorChain)}");
+        
         if (!sectorChain.Any())
         {
+            Console.WriteLine($"[WARN] Empty sector chain for {entry.Name}");
             return Array.Empty<byte>();
         }
 
         using var ms = new MemoryStream();
+        long fileLength = _reader.BaseStream.Length;
         foreach (uint sector in sectorChain)
         {
-            // Calculate sector position: header (512 bytes) + sector * sector size
-            long sectorOffset = 512 + (sector * _sectorSize);
+            // Calculate sector position: (sector index + 1) * sector size
+            long sectorOffset = (sector + 1) * _sectorSize;
+            
+            // Skip sectors beyond file capacity
+            if (sectorOffset >= fileLength)
+            {
+                Console.WriteLine($"[WARN] Skipping sector {sector} at offset {sectorOffset} (0x{sectorOffset:X}) - beyond file size ({fileLength})");
+                continue;
+            }
+            
+            Console.WriteLine($"[DEBUG] Reading sector {sector} at offset {sectorOffset} (0x{sectorOffset:X})");
             _reader.BaseStream.Seek(sectorOffset, SeekOrigin.Begin);
-            byte[] data = _reader.ReadBytes((int)_sectorSize);
+            
+            // Calculate safe read size (don't read beyond file)
+            long remainingBytes = fileLength - sectorOffset;
+            int bytesToRead = (int)Math.Min(_sectorSize, remainingBytes);
+            
+            byte[] data = _reader.ReadBytes(bytesToRead);
+            Console.WriteLine($"[DEBUG] Read {data.Length} bytes from sector {sector}");
             ms.Write(data, 0, data.Length);
         }
+        
+        Console.WriteLine($"[DEBUG] Total bytes read for {entry.Name}: {ms.Length}");
         // Truncate to actual stream size
         var streamData = ms.ToArray();
         var streamLength = (int)entry.StreamSize;
@@ -212,6 +234,7 @@ public class CompoundFileBinaryFormatParser
         var chain = new List<uint>();
         uint current = startSector;
         const uint EndOfChain = 0xFFFFFFFE;
+        long fileLength = _reader.BaseStream.Length;
 
         // Read FAT from header or cache
         if (_fat == null)
@@ -219,11 +242,21 @@ public class CompoundFileBinaryFormatParser
             ReadFatTable();
         }
 
+        // Calculate maximum valid sector index based on file size
+        uint maxSector = (uint)((fileLength - 1) / _sectorSize);
+        
         while (current != EndOfChain && current != FreeSector)
         {
             if (current >= _fat.Length)
             {
                 throw new InvalidDataException($"Invalid FAT index: {current}");
+            }
+            
+            // Validate sector is within file bounds
+            if (current > maxSector)
+            {
+                Console.WriteLine($"[WARN] Breaking FAT chain: sector {current} is beyond file size (max sector: {maxSector})");
+                break;
             }
 
             chain.Add(current);
@@ -264,5 +297,8 @@ public class CompoundFileBinaryFormatParser
                     _fat[fatIndex++] = _reader.ReadUInt32();
             }
         }
+        
+        // Log the first 20 FAT entries for debugging
+        Console.WriteLine($"[DEBUG] First 20 FAT entries: {string.Join(", ", _fat.Take(20))}");
     }
 }

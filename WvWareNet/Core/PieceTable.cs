@@ -224,9 +224,12 @@ public class PieceTable
         var sb = new System.Text.StringBuilder(input.Length);
         foreach (char c in input)
         {
-            // Preserve CR, LF, TAB, vertical tab (0x0B), Unicode line/paragraph separators (U+2028, U+2029)
-            if (c == '\r' || c == '\n' || c == '\t' || c == '\v' || c == '\u2028' || c == '\u2029' || c >= ' ')
+            // Allow only printable ASCII, whitespace, and standard Unicode letters/digits/punctuation
+            if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c) ||
+                c == '\r' || c == '\n' || c == '\t' || c == '\v' || c == '\u2028' || c == '\u2029')
+            {
                 sb.Append(c);
+            }
         }
         return sb.ToString();
     }
