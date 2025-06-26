@@ -28,6 +28,14 @@ public class WvDocExtractor
         }
 
         byte[] fileData = File.ReadAllBytes(filePath);
+
+        // Check for DOCX/OOXML (ZIP) signature
+        if (fileData.Length >= 4 &&
+            fileData[0] == 0x50 && fileData[1] == 0x4B && fileData[2] == 0x03 && fileData[3] == 0x04)
+        {
+            _logger.LogError("File appears to be a Word 2007+ (.docx) file with the wrong extension.");
+            throw new InvalidDataException("File appears to be a Word 2007+ (.docx) file with the wrong extension.");
+        }
         
         // Handle Word95 files using magic bytes
         bool isWord95 = fileData.Length > 0x200 && fileData[0x200] == 0xEC && fileData[0x201] == 0xA5;
@@ -58,8 +66,18 @@ public class WvDocExtractor
         using var fileStream = new MemoryStream(fileData);
         var cfbfParser = new CompoundFileBinaryFormatParser(fileStream);
 
-        // Parse CFBF header before accessing directory entries
-        cfbfParser.ParseHeader();
+        // Try to parse CFBF header, fallback if invalid
+        try
+        {
+            cfbfParser.ParseHeader();
+        }
+        catch (InvalidDataException ex)
+        {
+            _logger.LogError($"CFBF/OLE header invalid: {ex.Message}");
+            _logger.LogInfo("Attempting fallback extraction for non-OLE/CFBF .doc file");
+            return ExtractTextFallback(fileData);
+        }
+
         // Find streams by name
         var entries = cfbfParser.ParseDirectoryEntries();
         var wordDocEntry = entries.Find(e => e.Name.Contains("WordDocument", StringComparison.OrdinalIgnoreCase));
@@ -109,51 +127,191 @@ public class WvDocExtractor
     private string ExtractTextFallback(byte[] fileData)
     {
         string extractedText = null;
-        
-        // First try decoding as UTF-16LE (common in Word documents)
+
+        // Try to parse as flat Word binary doc (FIB at start)
+        bool triedFib = false;
         try
         {
-            extractedText = Encoding.Unicode.GetString(fileData);
-            if (!string.IsNullOrWhiteSpace(extractedText))
+            var fib = Core.FileInformationBlock.Parse(fileData);
+            triedFib = true;
+            // Known Word versions: 0x0062, 0x0063, 0x0065, 0x0076, 0x00C1, 0x00D9, 0x0101, 0x0112
+            ushort[] knownFibVersions = { 0x0062, 0x0063, 0x0065, 0x0076, 0x00C1, 0x00D9, 0x0101, 0x0112 };
+            if (Array.Exists(knownFibVersions, v => v == fib.NFib) && fib.FcMin < fib.FcMac && fib.FcMac <= fileData.Length)
             {
-                _logger.LogInfo("Fallback: Successfully decoded as UTF-16LE");
+                int textStart = (int)fib.FcMin;
+                int textLen = (int)(fib.FcMac - fib.FcMin);
+                if (textStart >= 0 && textLen > 0 && textStart + textLen <= fileData.Length)
+                {
+                    byte[] textBytes = new byte[textLen];
+                    Array.Copy(fileData, textStart, textBytes, 0, textLen);
+
+                    // Try UTF-16LE first, then fallback to Windows-1252, then ASCII
+                    try
+                    {
+                        extractedText = Encoding.Unicode.GetString(textBytes);
+                        if (!string.IsNullOrWhiteSpace(extractedText))
+                        {
+                            _logger.LogInfo("Flat .doc: Successfully decoded main text as UTF-16LE");
+                        }
+                    }
+                    catch { }
+
+                    if (string.IsNullOrWhiteSpace(extractedText))
+                    {
+                        try
+                        {
+                            extractedText = Encoding.GetEncoding(1251).GetString(textBytes);
+                            if (!string.IsNullOrWhiteSpace(extractedText))
+                            {
+                                _logger.LogInfo("Flat .doc: Successfully decoded main text as Windows-1251 (Cyrillic)");
+                            }
+                        }
+                        catch { }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(extractedText))
+                    {
+                        try
+                        {
+                            extractedText = Encoding.GetEncoding(1252).GetString(textBytes);
+                            if (!string.IsNullOrWhiteSpace(extractedText))
+                            {
+                                _logger.LogInfo("Flat .doc: Successfully decoded main text as Windows-1252");
+                            }
+                        }
+                        catch { }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(extractedText))
+                    {
+                        var sb = new StringBuilder();
+                        foreach (byte b in textBytes)
+                        {
+                            if (b >= 32 && b <= 126)
+                                sb.Append((char)b);
+                        }
+                        extractedText = sb.ToString();
+                        _logger.LogInfo("Flat .doc: Used ASCII extraction for main text");
+                    }
+                }
             }
         }
         catch
         {
-            // Continue to other methods
+            // Ignore and fallback to generic extraction
         }
 
-        // If still empty, try UTF-8
+        // If still empty, use sliding window to extract readable text sequences
         if (string.IsNullOrWhiteSpace(extractedText))
         {
+            _logger.LogInfo("Sliding window: extracting readable text sequences from file");
+            var sb = new StringBuilder();
+            int minSeqLen = 8;
+
+            // ASCII sequences
+            int asciiCount = 0;
+            var asciiSeq = new StringBuilder();
+            for (int i = 0; i < fileData.Length; i++)
+            {
+                byte b = fileData[i];
+                if (b >= 32 && b <= 126)
+                {
+                    asciiSeq.Append((char)b);
+                    asciiCount++;
+                }
+                else
+                {
+                    if (asciiCount >= minSeqLen)
+                    {
+                        sb.AppendLine(asciiSeq.ToString());
+                    }
+                    asciiSeq.Clear();
+                    asciiCount = 0;
+                }
+            }
+            if (asciiCount >= minSeqLen)
+            {
+                sb.AppendLine(asciiSeq.ToString());
+            }
+
+            // UTF-16LE sequences
+            int unicodeCount = 0;
+            var unicodeSeq = new StringBuilder();
+            for (int i = 0; i < fileData.Length - 1; i += 2)
+            {
+                ushort ch = (ushort)(fileData[i] | (fileData[i + 1] << 8));
+                char c = (char)ch;
+                if (!char.IsControl(c) && !char.IsSurrogate(c) && (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c)))
+                {
+                    unicodeSeq.Append(c);
+                    unicodeCount++;
+                }
+                else
+                {
+                    if (unicodeCount >= minSeqLen)
+                    {
+                        sb.AppendLine(unicodeSeq.ToString());
+                    }
+                    unicodeSeq.Clear();
+                    unicodeCount = 0;
+                }
+            }
+            if (unicodeCount >= minSeqLen)
+            {
+                sb.AppendLine(unicodeSeq.ToString());
+            }
+
+            extractedText = sb.ToString();
+        }
+
+        // If still empty, fallback to previous generic extraction
+        if (string.IsNullOrWhiteSpace(extractedText))
+        {
+            // First try decoding as UTF-16LE (common in Word documents)
             try
             {
-                extractedText = Encoding.UTF8.GetString(fileData);
+                extractedText = Encoding.Unicode.GetString(fileData);
                 if (!string.IsNullOrWhiteSpace(extractedText))
                 {
-                    _logger.LogInfo("Fallback: Successfully decoded as UTF-8");
+                    _logger.LogInfo("Fallback: Successfully decoded as UTF-16LE");
                 }
             }
             catch
             {
                 // Continue to other methods
             }
-        }
 
-        // If still empty, extract printable ASCII characters
-        if (string.IsNullOrWhiteSpace(extractedText))
-        {
-            _logger.LogInfo("Fallback: Using ASCII extraction");
-            var sb = new StringBuilder();
-            foreach (byte b in fileData)
+            // If still empty, try UTF-8
+            if (string.IsNullOrWhiteSpace(extractedText))
             {
-                if (b >= 32 && b <= 126)  // Printable ASCII range
+                try
                 {
-                    sb.Append((char)b);
+                    extractedText = Encoding.UTF8.GetString(fileData);
+                    if (!string.IsNullOrWhiteSpace(extractedText))
+                    {
+                        _logger.LogInfo("Fallback: Successfully decoded as UTF-8");
+                    }
+                }
+                catch
+                {
+                    // Continue to other methods
                 }
             }
-            extractedText = sb.ToString();
+
+            // If still empty, extract printable ASCII characters
+            if (string.IsNullOrWhiteSpace(extractedText))
+            {
+                _logger.LogInfo("Fallback: Using ASCII extraction");
+                var sb = new StringBuilder();
+                foreach (byte b in fileData)
+                {
+                    if (b >= 32 && b <= 126)  // Printable ASCII range
+                    {
+                        sb.Append((char)b);
+                    }
+                }
+                extractedText = sb.ToString();
+            }
         }
 
         // Clean up extracted text - remove non-printable characters
@@ -165,13 +323,7 @@ public class WvDocExtractor
                 cleanText.Append(c);
             }
         }
-        
-        // For this specific file, extract only the word "test" if found
-        if (cleanText.ToString().Contains("test", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogInfo("Fallback: Found 'test' in extracted text");
-        }
-        
+
         return cleanText.ToString();
     }
 }

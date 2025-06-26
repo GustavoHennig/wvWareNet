@@ -194,9 +194,50 @@ public class PieceTable
         documentStream.Seek(fcStart, SeekOrigin.Begin);
         byte[] bytes = reader.ReadBytes(length);
 
-        string text = isUnicode
-            ? System.Text.Encoding.Unicode.GetString(bytes)
-            : System.Text.Encoding.GetEncoding(1252).GetString(bytes);
+        string text;
+        if (isUnicode)
+        {
+            text = System.Text.Encoding.Unicode.GetString(bytes);
+            _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as UTF-16LE");
+        }
+        else
+        {
+            // Try 1252, then 1251, then ISO-8859-1 if output looks garbled
+            text = System.Text.Encoding.GetEncoding(1252).GetString(bytes);
+            if (text.Count(c => c == '\uFFFD' || c == '?') > text.Length / 4)
+            {
+                try
+                {
+                    var alt = System.Text.Encoding.GetEncoding(1251).GetString(bytes);
+                    if (alt.Count(c => c == '\uFFFD' || c == '?') < text.Count(c => c == '\uFFFD' || c == '?'))
+                    {
+                        text = alt;
+                        _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1251");
+                    }
+                    else
+                    {
+                        alt = System.Text.Encoding.GetEncoding("iso-8859-1").GetString(bytes);
+                        if (alt.Count(c => c == '\uFFFD' || c == '?') < text.Count(c => c == '\uFFFD' || c == '?'))
+                        {
+                            text = alt;
+                            _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as ISO-8859-1");
+                        }
+                        else
+                        {
+                            _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1252 (fallback, garbled)");
+                        }
+                    }
+                }
+                catch
+                {
+                    _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1252 (fallback, exception)");
+                }
+            }
+            else
+            {
+                _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1252");
+            }
+        }
 
         _logger.LogInfo($"[DEBUG] GetTextForRange returning: '{text}'");
         return CleanText(text);
@@ -207,11 +248,17 @@ public class PieceTable
         var sb = new System.Text.StringBuilder(input.Length);
         foreach (char c in input)
         {
-            // Allow only printable ASCII, whitespace, and standard Unicode letters/digits/punctuation
+            // Allow a wider range of characters including Cyrillic and special punctuation
             if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c) ||
-                c == '\r' || c == '\n' || c == '\t' || c == '\v' || c == '\u2028' || c == '\u2029')
+                c == '\r' || c == '\n' || c == '\t' || c == '\v' ||
+                (c >= '\u0400' && c <= '\u04FF') || // Cyrillic range
+                (c >= '\u00A0' && c <= '\u00FF'))   // Latin-1 Supplement
             {
                 sb.Append(c);
+            }
+            else if (c == '\uFFFD' || c < ' ') // Replace replacement chars and control chars
+            {
+                // Skip these characters
             }
         }
         return sb.ToString();

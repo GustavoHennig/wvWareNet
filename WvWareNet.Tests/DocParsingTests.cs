@@ -29,4 +29,26 @@ public class DocParsingTests
         string text = extractor.ExtractText(filePath);
         Assert.False(string.IsNullOrWhiteSpace(text));
     }
+
+    [Fact]
+    public void ConvertAllDocsInExternalFolderToTextWithWvSuffix()
+    {
+        string folder = @"";
+        var docFiles = Directory.GetFiles(folder, "*.doc", SearchOption.TopDirectoryOnly);
+
+        var extractor = new WvDocExtractor(new ConsoleLogger());
+
+        foreach (var docFile in docFiles)
+        {
+            string text = extractor.ExtractText(docFile);
+            Assert.False(string.IsNullOrWhiteSpace(text), $"No text extracted from {docFile}");
+
+            string outputPath = Path.Combine(
+                folder,
+                Path.GetFileNameWithoutExtension(docFile) + "_wv.txt"
+            );
+            File.WriteAllText(outputPath, text);
+            Assert.True(File.Exists(outputPath), $"Output file not created: {outputPath}");
+        }
+    }
 }

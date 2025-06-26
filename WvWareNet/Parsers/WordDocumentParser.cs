@@ -381,6 +381,16 @@ namespace WvWareNet.Parsers
                         int len = Array.IndexOf(bytes, (byte)0);
                         if (len < 0) len = bytes.Length;
                         headerText = System.Text.Encoding.Default.GetString(bytes, 0, len);
+                        // Try Windows-1251 if Default decoding looks garbled (heuristic: many '?')
+                        if (headerText.Count(c => c == '?') > headerText.Length / 4)
+                        {
+                            try
+                            {
+                                headerText = System.Text.Encoding.GetEncoding(1251).GetString(bytes, 0, len);
+                                _logger.LogInfo("[Cyrillic] Header decoded with Windows-1251");
+                            }
+                            catch { }
+                        }
                     }
 
                     _documentModel.Headers.Add(new WvWareNet.Core.HeaderFooter
@@ -461,6 +471,16 @@ namespace WvWareNet.Parsers
                         int len = Array.IndexOf(bytes, (byte)0);
                         if (len < 0) len = bytes.Length;
                         footnoteText = System.Text.Encoding.Default.GetString(bytes, 0, len);
+                        // Try Windows-1251 if Default decoding looks garbled (heuristic: many '?')
+                        if (footnoteText.Count(c => c == '?') > footnoteText.Length / 4)
+                        {
+                            try
+                            {
+                                footnoteText = System.Text.Encoding.GetEncoding(1251).GetString(bytes, 0, len);
+                                _logger.LogInfo("[Cyrillic] Footnote decoded with Windows-1251");
+                            }
+                            catch { }
+                        }
                     }
 
                     _documentModel.Footnotes.Add(new WvWareNet.Core.Footnote
