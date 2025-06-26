@@ -100,10 +100,9 @@ public class PieceTable
             using var reader = new BinaryReader(stream);
 
             // The piece table (PlcPcd) consists of an array of character
-            // positions followed by an array of piece descriptors.  The
-            // number of pieces can be derived from the total length.
-            int numCps = (plcPcdLength - 4) / 4; // Each CP is 4 bytes
-            int pieceCount = (numCps - 1) / 2;
+            // positions followed by an array of piece descriptors.  
+            // Each piece: 4 bytes CP, 8 bytes descriptor (total 12 bytes per piece)
+            int pieceCount = (plcPcdLength - 4) / 12;
             if (pieceCount <= 0)
             {
                 _logger.LogWarning($"Invalid piece table length {plcPcdLength}. Using fallback single-piece table.");
@@ -115,39 +114,23 @@ public class PieceTable
             for (int j = 0; j < pieceCount + 1; j++)
                 cpArray[j] = reader.ReadInt32();
 
-            var fcValues = new uint[pieceCount];
-            var unicodeFlags = new bool[pieceCount];
             for (int j = 0; j < pieceCount; j++)
             {
                 uint fcValue = reader.ReadUInt32();
                 reader.ReadUInt32(); // skip PRM for now
 
-                unicodeFlags[j] = (fcValue & 0x40000000) != 0;
-                fcValues[j] = fcValue & 0x3FFFFFFF;
-            }
+                bool isUnicode = (fcValue & 0x40000000) != 0;
+                uint fc = fcValue & 0x3FFFFFFF;
 
-            bool anyUnicode = false;
-            for (int j = 0; j < pieceCount; j++)
-                if (unicodeFlags[j]) { anyUnicode = true; break; }
-
-            if (nFib == 0x0065 && !anyUnicode)
-            {
-                bool guess = GuessPiecesAre16Bit(fcValues, cpArray);
-                for (int j = 0; j < pieceCount; j++)
-                    unicodeFlags[j] = guess;
-            }
-
-            for (int j = 0; j < pieceCount; j++)
-            {
                 int cpStart = cpArray[j];
                 int cpEnd = cpArray[j + 1];
-                int fcStart = (int)fcValues[j];
-                int fcEnd = fcStart + (unicodeFlags[j] ? (cpEnd - cpStart) * 2 : (cpEnd - cpStart));
+                int fcStart = (int)fc;
+                int fcEnd = fcStart + (isUnicode ? (cpEnd - cpStart) * 2 : (cpEnd - cpStart));
 
                 var descriptor = new PieceDescriptor
                 {
-                    FilePosition = fcValues[j],
-                    IsUnicode = unicodeFlags[j],
+                    FilePosition = fc,
+                    IsUnicode = isUnicode,
                     HasFormatting = false,
                     CpStart = cpStart,
                     CpEnd = cpEnd,
@@ -269,9 +252,8 @@ public class PieceTable
     public void SetSinglePiece(uint fcMin, uint fcMac, ushort nFib)
     {
         _pieces.Clear();
-        // Word 97 (nFib 0x0076) and later are typically Unicode.
-        // Word 95 (nFib 0x0065) and earlier are typically not Unicode.
-        bool isUnicode = nFib >= 0x0076;
+        // Always use 8-bit encoding for fallback, as in the working version.
+        bool isUnicode = false;
 
         _pieces.Add(new PieceDescriptor
         {

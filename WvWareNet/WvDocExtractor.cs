@@ -81,53 +81,19 @@ public class WvDocExtractor
             Array.Copy(tableStream, fib.FcClx, clx, 0, fib.LcbClx);
         }
 
+        // Always use WordDocumentParser for Word97+ files, regardless of CLX/piece table presence
         string extractedText = null;
-        bool hasValidPieceTable = clx != null && clx.Length > 0;
-
-        if (hasValidPieceTable)
+        try
         {
             var wordDocumentParser = new WordDocumentParser(cfbfParser, _logger);
             wordDocumentParser.ParseDocument(password);
-            try
-            {
-                extractedText = wordDocumentParser.ExtractText();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error parsing document with CFBF: {ex.Message}");
-                _logger.LogInfo("Attempting fallback text extraction");
-                extractedText = ExtractTextFallback(fileData);
-            }
+            extractedText = wordDocumentParser.ExtractText();
         }
-        else
+        catch (Exception ex)
         {
-            // Fallback: extract text from FcMin to FcMac (simple doc, no piece table)
-            _logger.LogInfo("No valid piece table found, using simple extraction from FcMin to FcMac.");
-            int start = (int)fib.FcMin;
-            int end = (int)fib.FcMac;
-            if (start >= 0 && end > start && end <= wordDocumentStream.Length)
-            {
-                byte[] textBytes = new byte[end - start];
-                Array.Copy(wordDocumentStream, start, textBytes, 0, end - start);
-                // Try Unicode first, then fallback to codepage 1252
-                extractedText = Encoding.Unicode.GetString(textBytes);
-                if (string.IsNullOrWhiteSpace(extractedText) || !extractedText.Any(char.IsLetterOrDigit))
-                {
-                    extractedText = Encoding.GetEncoding(1252).GetString(textBytes);
-                }
-                // Filter to printable characters
-                var cleanText = new StringBuilder();
-                foreach (char c in extractedText)
-                {
-                    if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c))
-                        cleanText.Append(c);
-                }
-                extractedText = cleanText.ToString();
-            }
-            else
-            {
-                extractedText = ExtractTextFallback(fileData);
-            }
+            _logger.LogError($"Error parsing document with CFBF: {ex.Message}");
+            _logger.LogInfo("Attempting fallback text extraction");
+            extractedText = ExtractTextFallback(fileData);
         }
 
         // If extracted text is empty, try fallback anyway
