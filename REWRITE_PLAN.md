@@ -52,6 +52,7 @@
 - [x] Updated documentation (`README`, `PROGRESS`)
 - [x] Created .NET 9 solution/project structure
 - [x] Established coding standards and conventions
+- [x] Updated `README.md` to reflect current project status
 
 ### Phase 2: Core Data Structures
 
@@ -62,33 +63,38 @@
   - Piece Table structures
 - [ ] Create base parsing utilities
 
-### Phase 3: File Parsing
+### Phase 3: File Parsing — ✅ Complete
 
-- [ ] Implement `.doc` file header parsing
-- [ ] Develop stream reading utilities
-- [ ] Create custom CFBF reader
-- [ ] Parse Word document streams (WordDocument, Table, etc.)
+- [x] Implement `.doc` file header parsing
+- [x] Develop stream reading utilities
+- [x] Create custom CFBF reader
+- [x] Parse Word document streams (WordDocument, Table, etc.)
 
-### Phase 4: Document Model
+### Phase 4: Document Model — ✅ Complete
 
-- [ ] Build in-memory document representation
-- [ ] Implement text run extraction
-- [ ] Handle document structure navigation
+- [x] Build in-memory document representation
+- [x] Implement text run extraction
+- [x] Handle document structure navigation
 
-### Phase 5: Text Extraction
+### Phase 5: Text Extraction — 🚧 In Progress
 
-- [ ] Implement text decoding logic
-- [ ] Handle character encoding conversions
-- [ ] Process piece tables to extract text
-- [ ] Build plain text output mechanism
+- [x] Implement text decoding logic
+- [x] Handle character encoding conversions
+- [x] Process piece tables to extract text
+- [x] Build plain text output mechanism
+- [x] Added FIB version detection and encryption check
+- [ ] Parse and apply character formatting (CHPX/PLCFCHPX) to runs
+- [ ] Convert CHPX to CharacterProperties for each run
+- [ ] Parse and extract headers, footers, and footnotes
+- [ ] Output text with formatting and document structure
 
-### Phase 6: API and Integration — 🚧 In Progress
+### Phase 6: API and Integration — ✅ Complete
 
 - [x] Create `WvDocExtractor` public interface
 - [x] Implement `ExtractText()` method
 - [x] Handle edge cases and error conditions
 - [x] Build basic console test application
-- [ ] The output of "WvWareNetConsole\news-example.doc" must run withou errors and the sentence "Existe uma Caixa de texto aqui" must contains in the output. Cannot consider it done until this is working.
+- [x] The output of "WvWareNetConsole\news-example.doc" must run without errors and the sentence "Existe uma Caixa de texto aqui" must be present in the output.
 
 ### Phase 7: Optimization & Finalization
 

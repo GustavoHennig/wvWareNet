@@ -25,7 +25,7 @@ public class DocParsingTests
         string filePath = Path.Combine(AppContext.BaseDirectory, fileName);
         Assert.True(File.Exists(filePath), $"Sample file not found: {filePath}");
 
-        var extractor = new WvDocExtractor(new NullLogger());
+        var extractor = new WvDocExtractor(new ConsoleLogger());
         string text = extractor.ExtractText(filePath);
         Assert.False(string.IsNullOrWhiteSpace(text));
     }

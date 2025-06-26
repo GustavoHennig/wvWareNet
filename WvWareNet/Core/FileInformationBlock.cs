@@ -187,6 +187,11 @@ public class FileInformationBlock
     public static FileInformationBlock Parse(byte[] wordDocumentStream)
     {
         var fib = new FileInformationBlock();
+        if (wordDocumentStream.Length < 512) // A minimal FIB requires at least the header size
+        {
+            return fib; // Return a default FIB if stream is too small
+        }
+
         using var ms = new System.IO.MemoryStream(wordDocumentStream);
         using var reader = new System.IO.BinaryReader(ms);
 

@@ -2,16 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using WvWareNet.Parsers;
+using WvWareNet.Utilities;
 
 namespace WvWareNet.Parsers
 {
     public class WordDocumentParser
     {
         private readonly CompoundFileBinaryFormatParser _cfbfParser;
+        private readonly ILogger _logger;
 
-        public WordDocumentParser(CompoundFileBinaryFormatParser cfbfParser)
+        public WordDocumentParser(CompoundFileBinaryFormatParser cfbfParser, ILogger logger)
         {
             _cfbfParser = cfbfParser;
+            _logger = logger;
         }
 
         private WvWareNet.Core.DocumentModel _documentModel;
@@ -104,13 +107,10 @@ namespace WvWareNet.Parsers
             var logger = new WvWareNet.Utilities.ConsoleLogger();
             var pieceTable = new WvWareNet.Core.PieceTable(logger);
 
-            if (tableStream != null)
+            if (tableStream != null && fib.LcbClx > 0 && fib.FcClx >= 0 && (fib.FcClx + fib.LcbClx) <= tableStream.Length)
             {
                 // Extract CLX (piece table) data from Table stream using FIB offsets
                 Console.WriteLine($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
-                if (fib.FcClx < 0 || fib.LcbClx == 0 || fib.FcClx + fib.LcbClx > tableStream.Length)
-                    throw new InvalidDataException("Invalid CLX offsets in FIB.");
-
                 byte[] clxData = new byte[fib.LcbClx];
                 Array.Copy(tableStream, fib.FcClx, clxData, 0, fib.LcbClx);
 
@@ -119,14 +119,14 @@ namespace WvWareNet.Parsers
                 if (pieceTable.Pieces.Count == 1 && pieceTable.Pieces[0].FcStart >= wordDocStream.Length)
                 {
                     logger.LogWarning("Invalid piece table detected, falling back to FcMin/FcMac range.");
-                    pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac);
+                    pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac, fib.NFib);
                 }
             }
             else
             {
                 // Fallback for Word95 without Table stream - treat as single piece
-                logger.LogWarning("No Table stream found, treating document as single piece");
-                pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac);
+                logger.LogWarning("No Table stream found or invalid CLX offsets, treating document as single piece");
+                pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac, fib.NFib);
             }
 
             // Extract CHPX (character formatting) data from Table stream using PLCFCHPX
@@ -466,13 +466,13 @@ namespace WvWareNet.Parsers
                         textBuilder.Append("•\t"); // Add bullet point and tab
                     }
 
-foreach (var run in paragraph.Runs)
-{
-    // Filter out embedded OLE metadata streams
-    if (run.Text != null && (run.Text.StartsWith("EMBED ") || run.Text.StartsWith("HYPERLINK ")))
-        continue;
-    // Remove existing bullets/dashes if they exist
-    string text = run.Text;
+                    foreach (var run in paragraph.Runs)
+                    {
+                        // Filter out embedded OLE metadata streams
+                        if (run.Text != null && (run.Text.StartsWith("EMBED ") || run.Text.StartsWith("HYPERLINK ")))
+                            continue;
+                        // Remove existing bullets/dashes if they exist
+                        string text = run.Text;
                         if (isListItem && (text.StartsWith("•") || text.StartsWith("-")))
                         {
                             text = text.Substring(1).TrimStart();

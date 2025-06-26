@@ -1,0 +1,1 @@
+with open("P:/Dev/Experiments/vwWare-toDotNet/WvWareNetConsole/test.doc", "rb") as f: print(f.read(256).hex())

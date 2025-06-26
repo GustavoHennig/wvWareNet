@@ -1,6 +1,6 @@
 # vwWare-toDotNet
 
-## Project Status: Full C# Rewrite
+## Project Status: Full C# Rewrite — 🚧 In Progress
 
 This project is a complete, from-scratch rewrite of the original `wvWare` (Word document parser) in modern C#.
 
@@ -8,7 +8,7 @@ This project is a complete, from-scratch rewrite of the original `wvWare` (Word 
 - **No P/Invoke or interop**
 - **All logic implemented natively in C#**
 
-See `REWRITE_PLAN.md` for the detailed rewrite roadmap.
+See `REWRITE_PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current development updates.
 
 ## Goals
 
@@ -20,6 +20,7 @@ See `REWRITE_PLAN.md` for the detailed rewrite roadmap.
 ## Scope
 
 - Input: Microsoft Word `.doc` (binary, pre-2007) files
+- Must support Word 6.0, Word 95 (7.0), and Word 97 (8.0)
 - Output: Plain text extracted from the document
 - Only extract-to-text feature from original wvWare is targeted
 - Not a line-by-line port, but a clean architectural redesign in C#
@@ -33,7 +34,7 @@ See `REWRITE_PLAN.md` for the detailed rewrite roadmap.
 
 ### Compatibility
 
-The parser attempts to read documents produced by Word 6 through Word 2007.
+The parser attempts to read documents produced by Word 6, Word 95 and Word 97.
 Encrypted files are detected and will trigger a clear error message.
 
 ## Original Project

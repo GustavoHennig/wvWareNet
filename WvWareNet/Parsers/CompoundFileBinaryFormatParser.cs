@@ -182,6 +182,11 @@ public class CompoundFileBinaryFormatParser
     public byte[] ReadStream(DirectoryEntry entry)
     {
         List<uint> sectorChain = GetFatChain(entry.StartingSectorLocation);
+        if (!sectorChain.Any())
+        {
+            return Array.Empty<byte>();
+        }
+
         using var ms = new MemoryStream();
         foreach (uint sector in sectorChain)
         {
@@ -192,7 +197,14 @@ public class CompoundFileBinaryFormatParser
             ms.Write(data, 0, data.Length);
         }
         // Truncate to actual stream size
-        return ms.ToArray().AsSpan(0, (int)entry.StreamSize).ToArray();
+        var streamData = ms.ToArray();
+        var streamLength = (int)entry.StreamSize;
+        if (streamLength > streamData.Length)
+        {
+            return streamData;
+        }
+
+        return streamData.AsSpan(0, streamLength).ToArray();
     }
 
     public List<uint> GetFatChain(uint startSector)
@@ -207,13 +219,13 @@ public class CompoundFileBinaryFormatParser
             ReadFatTable();
         }
 
-        while (current != EndOfChain)
+        while (current != EndOfChain && current != FreeSector)
         {
             if (current >= _fat.Length)
             {
                 throw new InvalidDataException($"Invalid FAT index: {current}");
             }
-            
+
             chain.Add(current);
             current = _fat[current];
         }

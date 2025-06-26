@@ -88,8 +88,9 @@ public class PieceTable
 
         if (plcPcdOffset == -1)
         {
-            _logger.LogError("No PlcPcd (piece table) found in CLX data");
-            throw new InvalidDataException("No PlcPcd (piece table) found in CLX data");
+            _logger.LogWarning("No PlcPcd (piece table) found in CLX data. Falling back to single piece.");
+            SetSinglePiece(fcMin, fcMac, nFib); // Use the new overload
+            return;
         }
 
         // Now parse the PlcPcd as the piece table
@@ -208,6 +209,7 @@ public class PieceTable
 
     private string GetTextForRange(int fcStart, int fcEnd, Stream documentStream, bool isUnicode)
     {
+        _logger.LogInfo($"[DEBUG] GetTextForRange: fcStart={fcStart}, fcEnd={fcEnd}, isUnicode={isUnicode}");
         int length = fcEnd - fcStart;
         if (length <= 0)
             return string.Empty;
@@ -220,6 +222,7 @@ public class PieceTable
             ? System.Text.Encoding.Unicode.GetString(bytes)
             : System.Text.Encoding.GetEncoding(1252).GetString(bytes);
 
+        _logger.LogInfo($"[DEBUG] GetTextForRange returning: '{text}'");
         return CleanText(text);
     }
 
@@ -267,13 +270,17 @@ public class PieceTable
     /// supplied file positions. Used as a fallback when the piece table is
     /// corrupt or not present.
     /// </summary>
-    public void SetSinglePiece(uint fcMin, uint fcMac)
+    public void SetSinglePiece(uint fcMin, uint fcMac, ushort nFib)
     {
         _pieces.Clear();
+        // Word 97 (nFib 0x0076) and later are typically Unicode.
+        // Word 95 (nFib 0x0065) and earlier are typically not Unicode.
+        bool isUnicode = nFib >= 0x0076;
+
         _pieces.Add(new PieceDescriptor
         {
             FilePosition = fcMin,
-            IsUnicode = false,
+            IsUnicode = isUnicode,
             HasFormatting = false,
             CpStart = 0,
             CpEnd = (int)(fcMac - fcMin),

@@ -19,6 +19,7 @@
   - Piece Table structures implemented
   - Character Properties (CHP) implemented
   - Paragraph Properties (PAP) implemented
+- README.md updated to reflect current project status
 
 ### Solution Layout
 
@@ -88,6 +89,7 @@ vwWare-toDotNet.sln
 - Implement PLCFCHPX parsing and CHPX mapping in PieceTable/WordDocumentParser
 - Implement CHPX to CharacterProperties conversion
 - Implement header/footer/footnote extraction and output
+
 ## Legacy Port Tracking
 
 This table tracks original `wvWare` C files, useful for reference in C# port. All logic is to be rewritten idiomatically.
