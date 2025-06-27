@@ -299,15 +299,15 @@ public class PieceTable
     public void SetSinglePiece(uint fcMin, uint fcMac, ushort nFib)
     {
         _pieces.Clear();
-        // Heuristic: Word 97+ (NFib >= 0x00C1) uses Unicode
-        bool isUnicode = nFib >= 0x00C1;
+        // Always use 8-bit encoding for fallback, as in the working version.
+        bool isUnicode = false;
         _pieces.Add(new PieceDescriptor
         {
             FilePosition = fcMin,
             IsUnicode = isUnicode,
             HasFormatting = false,
             CpStart = 0,
-            CpEnd = (int)(fcMac - fcMin) / (isUnicode ? 2 : 1),
+            CpEnd = (int)(fcMac - fcMin),
             FcStart = (int)fcMin,
             FcEnd = (int)fcMac
         });

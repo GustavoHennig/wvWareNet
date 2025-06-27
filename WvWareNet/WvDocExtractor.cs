@@ -36,20 +36,20 @@ public class WvDocExtractor
             _logger.LogError("File appears to be a Word 2007+ (.docx) file with the wrong extension.");
             throw new InvalidDataException("File appears to be a Word 2007+ (.docx) file with the wrong extension.");
         }
-        
+
         // Handle Word95 files using magic bytes
         bool isWord95 = fileData.Length > 0x200 && fileData[0x200] == 0xEC && fileData[0x201] == 0xA5;
         if (isWord95)
         {
             _logger.LogInfo("Detected Word95 document format");
             // Check if file is encrypted
-            bool isEncrypted = fileData.Length > 0x20 && 
+            bool isEncrypted = fileData.Length > 0x20 &&
                              (fileData[0x0B] & 0x01) == 0x01;
             _logger.LogInfo($"Word95 document - Encrypted: {isEncrypted}");
 
             if (isEncrypted)
             {
-                try 
+                try
                 {
                     uint lKey = BitConverter.ToUInt32(fileData, 0x00);
                     fileData = Word95Decryptor.Decrypt(fileData, password ?? string.Empty, lKey);
@@ -315,18 +315,20 @@ public class WvDocExtractor
                 }
                 extractedText = sb.ToString();
             }
-        }
 
-        // Clean up extracted text - remove non-printable characters
-        var cleanText = new StringBuilder();
-        foreach (char c in extractedText)
-        {
-            if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c))
+            // Clean up extracted text - remove non-printable characters
+            var cleanText = new StringBuilder();
+            foreach (char c in extractedText)
             {
-                cleanText.Append(c);
+                if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c))
+                {
+                    cleanText.Append(c);
+                }
             }
+
+            extractedText = cleanText.ToString();
         }
 
-        return cleanText.ToString();
+        return extractedText;
     }
 }
