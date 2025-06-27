@@ -502,6 +502,26 @@ namespace WvWareNet.Parsers
             {
                 _documentModel.Footers.Add(new WvWareNet.Core.HeaderFooter { Type = WvWareNet.Core.HeaderFooterType.Default });
             }
+
+            // Log document structure for debugging
+            _logger.LogInfo($"[STRUCTURE] Document has {_documentModel.Sections.Count} section(s)");
+            for (int i = 0; i < _documentModel.Sections.Count; i++)
+            {
+                var section = _documentModel.Sections[i];
+                _logger.LogInfo($"[STRUCTURE] Section {i+1}: {section.Paragraphs.Count} paragraph(s)");
+                for (int j = 0; j < section.Paragraphs.Count; j++)
+                {
+                    var paragraph = section.Paragraphs[j];
+                    _logger.LogInfo($"[STRUCTURE] Paragraph {j+1}: {paragraph.Runs.Count} run(s)");
+                    for (int k = 0; k < paragraph.Runs.Count; k++)
+                    {
+                        var run = paragraph.Runs[k];
+                        _logger.LogInfo($"[STRUCTURE] Run {k+1}: Length={run.Text?.Length ?? 0}, TextPreview='{(run.Text != null ? run.Text.Substring(0, Math.Min(20, run.Text.Length)) : "null")}'");
+                    }
+                }
+            }
+            
+            _logger.LogInfo("[PARSING] Document parsing completed");
         }
 
 
@@ -511,83 +531,28 @@ namespace WvWareNet.Parsers
                 throw new InvalidOperationException("Document not parsed. Call ParseDocument() first.");
 
             var textBuilder = new System.Text.StringBuilder();
+            int runCount = 0;
+            int charCount = 0;
 
+            // Extract text from document body only (ignore headers/footers/notes)
             foreach (var section in _documentModel.Sections)
             {
                 foreach (var paragraph in section.Paragraphs)
                 {
-                    bool isListItem = paragraph.Runs.Any(r => 
-                        (r.Text?.StartsWith("•") ?? false) ||
-                        (r.Text?.StartsWith("-") ?? false));
-
-                    if (isListItem)
-                    {
-                        textBuilder.Append("•\t"); // Add bullet point and tab
-                    }
-
                     foreach (var run in paragraph.Runs)
                     {
-                        // Filter out embedded OLE metadata streams
-                        if (run.Text != null && (run.Text.StartsWith("EMBED ") || run.Text.StartsWith("HYPERLINK ")))
-                            continue;
-                        // Remove existing bullets/dashes if they exist
-                        string text = run.Text;
-                        if (isListItem && (text.StartsWith("•") || text.StartsWith("-")))
+                        if (run.Text != null)
                         {
-                            text = text.Substring(1).TrimStart();
+                            textBuilder.Append(run.Text);
+                            runCount++;
+                            charCount += run.Text.Length;
                         }
-                        textBuilder.Append(text);
-                    }
-
-                    if (paragraph.Runs.Count > 0 && !string.IsNullOrEmpty(paragraph.Runs[^1].Text) && 
-                        !(paragraph.Runs[^1].Text.EndsWith("\r\n") || paragraph.Runs[^1].Text.EndsWith("\n") || paragraph.Runs[^1].Text.EndsWith("\r")))
-                    {
-                        textBuilder.AppendLine();
                     }
                 }
             }
 
-            // Normalize and split lines, filter out metadata and deduplicate globally
-            var rawText = textBuilder.ToString().Replace('\v', '\n');
-            var lines = rawText.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            var unique = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var output = new System.Text.StringBuilder();
-            foreach (var line in lines)
-            {
-                var trimmed = line.Trim();
-                if (string.IsNullOrWhiteSpace(trimmed))
-                    continue;
-                if (trimmed.StartsWith("EMBED ", StringComparison.OrdinalIgnoreCase) ||
-                    trimmed.StartsWith("HYPERLINK ", StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (unique.Add(trimmed))
-                    output.AppendLine(trimmed);
-            }
-            
-            // Add text box content with filtering and deduplication
-            var textBoxLines = new List<string>();
-            foreach (var textBox in _documentModel.TextBoxes)
-            {
-                foreach (var paragraph in textBox.Paragraphs)
-                {
-                    foreach (var run in paragraph.Runs)
-                    {
-                        if (run.Text == null) continue;
-                        var trimmed = run.Text.Trim();
-                        if (string.IsNullOrWhiteSpace(trimmed)) continue;
-                        if (trimmed.StartsWith("EMBED ", StringComparison.OrdinalIgnoreCase) ||
-                            trimmed.StartsWith("HYPERLINK ", StringComparison.OrdinalIgnoreCase))
-                            continue;
-                        if (unique.Add(trimmed))
-                            textBoxLines.Add(trimmed);
-                    }
-                }
-            }
-            foreach (var line in textBoxLines)
-                output.AppendLine(line);
-
-            // Replace vertical tab (0x0B) with newline for soft line breaks
-            return output.ToString().Replace('\v', '\n');
+            _logger.LogInfo($"[EXTRACTION] Extracted {runCount} runs with {charCount} characters");
+            return textBuilder.ToString();
         }
     }
 }

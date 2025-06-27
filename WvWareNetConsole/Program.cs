@@ -71,20 +71,44 @@ namespace WvWareNetConsole
                     }
                 }
 
+                logger.LogInfo($"Starting text extraction for: {filePath}");
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                
                 extractedText = extractor.ExtractText(filePath, password);
-                File.WriteAllText(outputPath, extractedText);
-                Console.WriteLine($"Text extracted to: {outputPath}");
+                
+                stopwatch.Stop();
+                logger.LogInfo($"Extraction completed in {stopwatch.ElapsedMilliseconds}ms");
+                logger.LogInfo($"Extracted text length: {extractedText?.Length ?? 0}");
+                
+                if (!string.IsNullOrEmpty(extractedText))
+                {
+                    File.WriteAllText(outputPath, extractedText);
+                    Console.WriteLine($"Text extracted to: {outputPath}");
+                    Console.WriteLine("Extracted text preview:");
+                    Console.WriteLine(extractedText.Substring(0, Math.Min(200, extractedText.Length)));
+                }
+                else
+                {
+                    logger.LogError("Extraction returned empty text. Please check the logs for details.");
+                    Console.WriteLine("Extraction completed but returned empty text. Please check the logs for details.");
+                }
             }
             catch (Exception ex)
             {
-                logger.LogError($"An error occurred during text extraction: {ex.Message}", ex);
-
-                // If it's a Word95 decryption error, suggest trying with password
-                if (ex.Message.Contains("Word95 decryption failed"))
+                // Directly output exception details to console
+                Console.WriteLine($"An error occurred during text extraction: {ex.GetType().FullName}");
+                Console.WriteLine($"Message: {ex.Message}");
+                Console.WriteLine("Stack Trace:");
+                Console.WriteLine(ex.StackTrace);
+                if (ex.InnerException != null)
                 {
-                    Console.WriteLine("Note: This appears to be an encrypted Word95 document.");
-                    Console.WriteLine("Try running again with a password: WvWareNetConsole <file> <password>");
+                    Console.WriteLine("Inner Exception:");
+                    Console.WriteLine($"Type: {ex.InnerException.GetType().FullName}");
+                    Console.WriteLine($"Message: {ex.InnerException.Message}");
                 }
+
+                // Also log using logger
+                logger.LogError($"An error occurred during text extraction: {ex.ToString()}", ex);
             }
         }
     }
