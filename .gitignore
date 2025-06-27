@@ -3,4 +3,6 @@ bin
 .vs
 WvWareNetConsole/*.txt
 WvWareNetWord97Working/
-examples/
+examples/out/
+examples/*.txt
+examples-local/

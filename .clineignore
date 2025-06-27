@@ -1,0 +1,9 @@
+**/bin/**
+**/obj/**
+WvWareNetWord97Working/
+#examples/*.doc
+obj
+bin
+.vs
+examples-local/
+*.exe
