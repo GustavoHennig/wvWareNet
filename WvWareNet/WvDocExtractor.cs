@@ -107,6 +107,10 @@ public class WvDocExtractor
             wordDocumentParser.ParseDocument(password);
             extractedText = wordDocumentParser.ExtractText();
         }
+        catch(NotSupportedException ex)
+        {
+            extractedText = ex.Message;
+        }
         catch (Exception ex)
         {
             _logger.LogError($"Error parsing document with CFBF: {ex.Message}");

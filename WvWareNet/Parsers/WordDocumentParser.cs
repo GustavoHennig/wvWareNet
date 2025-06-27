@@ -109,7 +109,7 @@ namespace WvWareNet.Parsers
 
             _documentModel.FileInfo = fib;
 
-            if ((fib.FEncrypted || fib.FCrypto) && !isWord95)
+            if ((fib.FEncrypted || fib.FCrypto)) // && !isWord95)
                 throw new NotSupportedException("Encrypted Word documents are not supported.");
 
             if (fib.FibVersion == null)
