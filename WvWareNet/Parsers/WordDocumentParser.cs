@@ -11,15 +11,17 @@ namespace WvWareNet.Parsers
         private readonly CompoundFileBinaryFormatParser _cfbfParser;
         private readonly ILogger _logger;
 
+
         public WordDocumentParser(CompoundFileBinaryFormatParser cfbfParser, ILogger logger)
         {
             _cfbfParser = cfbfParser;
             _logger = logger;
+            _documentModel = new Core.DocumentModel();
         }
 
-        private WvWareNet.Core.DocumentModel _documentModel;
+        private Core.DocumentModel _documentModel;
 
-        public void ParseDocument(string password = null)
+        public void ParseDocument(string? password = null)
         {
             // Ensure header is parsed before reading directory entries
             _cfbfParser.ParseHeader();
@@ -57,6 +59,8 @@ namespace WvWareNet.Parsers
 
             // Parse FIB early to detect Word95 before Table stream check
             var fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
+            _logger.LogInfo($"[DEBUG] Parsed FIB. nFib: {fib.NFib}, fComplex: {fib.FComplex}, fEncrypted: {fib.FEncrypted}");
+
 
             // Decrypt Word95 documents if necessary
             if (fib.NFib == 0x0065 && fib.FEncrypted)
@@ -81,44 +85,41 @@ namespace WvWareNet.Parsers
             {
                 if (isWord95)
                 {
-                    Console.WriteLine($"[WARN] Table stream not found in Word95/Word6 document (NFib={fib.NFib}), attempting to parse with reduced functionality");
-                    // Do not throw, continue with fallback logic
+                    _logger.LogWarning($"Table stream not found in Word95/Word6 document (NFib={fib.NFib}), attempting to parse with reduced functionality");
                 }
                 else if (fib.NFib == 53200) // Special case for Word95 test file
                 {
-                    Console.WriteLine($"[WARN] Table stream not found in Word95 document (NFib={fib.NFib}), attempting to parse with reduced functionality");
+                    _logger.LogWarning($"Table stream not found in Word95 document (NFib={fib.NFib}), attempting to parse with reduced functionality");
                 }
                 else
                 {
-                    Console.WriteLine($"[ERROR] Table stream not found, and not a recognized Word95/Word6 document (NFib={fib.NFib})");
+                    _logger.LogError($"Table stream not found, and not a recognized Word95/Word6 document (NFib={fib.NFib})");
                     throw new InvalidDataException("Required Table stream not found in CFBF file.");
                 }
             }
 
-            Console.WriteLine($"[DEBUG] Found WordDocument stream: {wordDocEntry.Name}");
-            byte[] tableStream = null;
+            _logger.LogInfo($"[DEBUG] Found WordDocument stream: {wordDocEntry.Name}");
+            byte[]? tableStream = null;
             
             if (tableEntry != null)
             {
-                Console.WriteLine($"[DEBUG] Found Table stream: {tableEntry.Name}");
+                _logger.LogInfo($"[DEBUG] Found Table stream: {tableEntry.Name}");
                 tableStream = _cfbfParser.ReadStream(tableEntry);
             }
 
-            _documentModel = new WvWareNet.Core.DocumentModel();
             _documentModel.FileInfo = fib;
 
             if ((fib.FEncrypted || fib.FCrypto) && !isWord95)
                 throw new NotSupportedException("Encrypted Word documents are not supported.");
 
             if (fib.FibVersion == null)
-                Console.WriteLine($"[WARN] Unknown Word version NFib={fib.NFib}");
+                _logger.LogWarning($"Unknown Word version NFib={fib.NFib}");
             else
-                Console.WriteLine($"[INFO] Detected Word version: {fib.FibVersion}");
+                _logger.LogInfo($"Detected Word version: {fib.FibVersion}");
 
-            var logger = new WvWareNet.Utilities.ConsoleLogger();
-            var pieceTable = new WvWareNet.Core.PieceTable(logger);
+            var pieceTable = new WvWareNet.Core.PieceTable(_logger);
 
-            byte[] clxData = null;
+            byte[]? clxData = null;
             if (tableStream != null)
             {
                 // Word 97 and later use FcClx and LcbClx from FIB
@@ -126,7 +127,7 @@ namespace WvWareNet.Parsers
                 {
                     if (fib.LcbClx > 0 && fib.FcClx >= 0 && (fib.FcClx + fib.LcbClx) <= tableStream.Length)
                     {
-                        Console.WriteLine($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
+                        _logger.LogInfo($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
                         clxData = new byte[fib.LcbClx];
                         Array.Copy(tableStream, fib.FcClx, clxData, 0, fib.LcbClx);
                     }
@@ -138,7 +139,7 @@ namespace WvWareNet.Parsers
                     int assumedClxLength = Math.Min(tableStream.Length, 512); 
                     clxData = new byte[assumedClxLength];
                     Array.Copy(tableStream, 0, clxData, 0, assumedClxLength);
-                    Console.WriteLine($"[DEBUG] Assuming CLX at start of Table stream for NFib={fib.NFib}, length={assumedClxLength}");
+                    _logger.LogInfo($"[DEBUG] Assuming CLX at start of Table stream for NFib={fib.NFib}, length={assumedClxLength}");
                 }
             }
 
@@ -163,6 +164,7 @@ namespace WvWareNet.Parsers
             {
                 _logger.LogWarning("No CLX data found or invalid, treating document as single piece");
                 pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac, fib.NFib);
+                _logger.LogInfo($"[DEBUG] Fallback single piece created. IsUnicode: {pieceTable.Pieces[0].IsUnicode}");
             }
 
             // Extract CHPX (character formatting) data from Table stream using PLCFCHPX

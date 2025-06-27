@@ -114,11 +114,14 @@ public class WvDocExtractor
             extractedText = ExtractTextFallback(fileData);
         }
 
+        _logger.LogInfo($"[Extractor] Text after WordDocumentParser: '{extractedText?.Substring(0, Math.Min(50, extractedText.Length)) ?? "null"}'");
+
         // If extracted text is empty, try fallback anyway
         if (string.IsNullOrWhiteSpace(extractedText))
         {
-            _logger.LogInfo("Extracted text was empty, attempting fallback");
+            _logger.LogInfo("[Extractor] Extracted text was empty, attempting fallback");
             extractedText = ExtractTextFallback(fileData);
+            _logger.LogInfo($"[Extractor] Text after Fallback: '{extractedText?.Substring(0, Math.Min(50, extractedText.Length)) ?? "null"}'");
         }
 
         return extractedText;
