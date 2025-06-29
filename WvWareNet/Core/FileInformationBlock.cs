@@ -289,6 +289,32 @@ public class FileInformationBlock
             fib.FcStshf = reader.ReadInt32();
             fib.LcbStshf = reader.ReadUInt32();
 
+            // Read character counts (Word 97+)
+            if (fib.NFib >= 104) // Word 97 and later
+            {
+                ms.Position = 0x00A4; // Character count section
+                fib.CcpText = reader.ReadUInt32();
+                fib.CcpFtn = reader.ReadInt32();
+                fib.CcpHdr = reader.ReadInt32();
+                fib.CcpMcr = reader.ReadInt32();
+                fib.CcpAtn = reader.ReadInt32();
+                fib.CcpEdn = reader.ReadInt32();
+                fib.CcpTxbx = reader.ReadInt32();
+                fib.CcpHdrTxbx = reader.ReadInt32();
+            }
+            else
+            {
+                // For older versions, try to determine text length from FcMin/FcMac
+                fib.CcpText = fib.FcMac - fib.FcMin;
+                fib.CcpFtn = 0;
+                fib.CcpHdr = 0;
+                fib.CcpMcr = 0;
+                fib.CcpAtn = 0;
+                fib.CcpEdn = 0;
+                fib.CcpTxbx = 0;
+                fib.CcpHdrTxbx = 0;
+            }
+
             return fib;
         }
 }

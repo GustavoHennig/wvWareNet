@@ -276,12 +276,12 @@ public class PieceTable
         {
             // Try 1252, then 1251, then ISO-8859-1 if output looks garbled
             text = System.Text.Encoding.GetEncoding(1252).GetString(bytes);
-            if (text.Count(c => c == '\uFFFD' || c == '?') > text.Length / 4)
+            if (text.Count(c => c == '�' || c == '?') > text.Length / 4)
             {
                 try
                 {
                     var alt = System.Text.Encoding.GetEncoding(1251).GetString(bytes);
-                    if (alt.Count(c => c == '\uFFFD' || c == '?') < text.Count(c => c == '\uFFFD' || c == '?'))
+                    if (alt.Count(c => c == '�' || c == '?') < text.Count(c => c == '�' || c == '?'))
                     {
                         text = alt;
                         _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1251");
@@ -289,7 +289,7 @@ public class PieceTable
                     else
                     {
                         alt = System.Text.Encoding.GetEncoding("iso-8859-1").GetString(bytes);
-                        if (alt.Count(c => c == '\uFFFD' || c == '?') < text.Count(c => c == '\uFFFD' || c == '?'))
+                        if (alt.Count(c => c == '�' || c == '?') < text.Count(c => c == '�' || c == '?'))
                         {
                             text = alt;
                             _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as ISO-8859-1");
@@ -311,8 +311,85 @@ public class PieceTable
             }
         }
 
-        _logger.LogInfo($"[DEBUG] GetTextForRange returning: '{text}'");
-        return CleanText(text);
+        string processedText = ProcessFieldCodes(text);
+        _logger.LogInfo($"[DEBUG] GetTextForRange returning: '{processedText}'");
+        return CleanText(processedText);
+    }
+
+    /// <summary>
+    /// Process Word field codes and extract only the field results.
+    /// Field structure: [0x13][field code][0x14][field result][0x15]
+    /// We want to keep only the field result part.
+    /// </summary>
+    private static string ProcessFieldCodes(string input)
+    {
+        var sb = new System.Text.StringBuilder(input.Length);
+        int i = 0;
+        
+        while (i < input.Length)
+        {
+            char c = input[i];
+            
+            if (c == '\x13') // Field begin (0x13)
+            {
+                // Find the field separator (0x14) and field end (0x15)
+                int separatorPos = -1;
+                int endPos = -1;
+                int depth = 1; // Track nested fields
+                
+                for (int j = i + 1; j < input.Length; j++)
+                {
+                    if (input[j] == '\x13') // Nested field begin
+                    {
+                        depth++;
+                    }
+                    else if (input[j] == '\x15') // Field end
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            endPos = j;
+                            break;
+                        }
+                    }
+                    else if (input[j] == '\x14' && depth == 1 && separatorPos == -1) // Field separator at our level
+                    {
+                        separatorPos = j;
+                    }
+                }
+                
+                if (endPos != -1)
+                {
+                    if (separatorPos != -1)
+                    {
+                        // Extract field result (between separator and end)
+                        string fieldResult = input.Substring(separatorPos + 1, endPos - separatorPos - 1);
+                        sb.Append(fieldResult);
+                    }
+                    // Skip to after the field end
+                    i = endPos + 1;
+                }
+                else
+                {
+                    // Malformed field, just append the character and continue
+                    sb.Append(c);
+                    i++;
+                }
+            }
+            else if (c == '\x14' || c == '\x15') // Standalone field separators/ends (shouldn't happen in well-formed text)
+            {
+                // Skip these control characters
+                i++;
+            }
+            else
+            {
+                // Regular character, append it
+                sb.Append(c);
+                i++;
+            }
+        }
+        
+        return sb.ToString();
     }
 
     private static string CleanText(string input)

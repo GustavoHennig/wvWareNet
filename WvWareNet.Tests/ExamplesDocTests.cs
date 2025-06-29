@@ -48,11 +48,12 @@ namespace WvWareNet.Tests
             var result = NormalizeText(extractor.ExtractText(docPath));
             var expected = NormalizeText(File.ReadAllText(expectedPath));
             bool isEqual = string.Equals(result, expected, StringComparison.InvariantCultureIgnoreCase);
-            Assert.Equal(expected,result, true, true, true, true);
-            if(!isEqual)
+            if (!isEqual)
             {
                 Debug.Print($"Mismatch in {docPath}");
             }
+            Assert.Equal(expected,result, true, true, true, true);
+           
 
         }
         /// <summary>

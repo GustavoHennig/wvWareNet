@@ -273,6 +273,9 @@ namespace WvWareNet.Parsers
 
             using var wordDocMs = new System.IO.MemoryStream(wordDocStream);
 
+            // Log character counts for debugging
+            _logger.LogInfo($"[DEBUG] Character counts - Text: {fib.CcpText}, Footnotes: {fib.CcpFtn}, Headers: {fib.CcpHdr}");
+
             // --- Paragraph boundary detection using PLCF for paragraphs (PAPX) ---
             if (tableStream != null && fib.FcPlcfbtePapx > 0 && fib.LcbPlcfbtePapx > 0 && fib.FcPlcfbtePapx + fib.LcbPlcfbtePapx <= tableStream.Length)
             {
@@ -297,6 +300,20 @@ namespace WvWareNet.Parsers
                     int cpStart = cpArray[i];
                     int cpEnd = cpArray[i + 1];
                     int offset = papxOffsetArray[i];
+
+                    // Only process paragraphs within the main document text range
+                    if (cpStart >= (int)fib.CcpText)
+                    {
+                        _logger.LogInfo($"[DEBUG] Skipping paragraph {i} at CP {cpStart} (beyond main text range {fib.CcpText})");
+                        continue;
+                    }
+                    
+                    // Clamp cpEnd to the main text boundary
+                    if (cpEnd > (int)fib.CcpText)
+                    {
+                        _logger.LogInfo($"[DEBUG] Clamping paragraph {i} end from CP {cpEnd} to {fib.CcpText}");
+                        cpEnd = (int)fib.CcpText;
+                    }
 
                     // Extract paragraph style from PAPX data
                     int styleIndex = 0;
@@ -333,7 +350,7 @@ namespace WvWareNet.Parsers
                     paragraph.StyleIndex = (short)styleIndex;
                     paragraph.Style = stylesheet.GetStyleName(styleIndex);
                     
-                    _logger.LogInfo($"[DEBUG] Paragraph {i}: StyleIndex={styleIndex}, StyleName='{paragraph.Style}'");
+                    _logger.LogInfo($"[DEBUG] Paragraph {i}: CP {cpStart}-{cpEnd}, StyleIndex={styleIndex}, StyleName='{paragraph.Style}'");
 
                     foreach (var pIdx in paraPieces)
                     {
