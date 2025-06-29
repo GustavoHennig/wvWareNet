@@ -257,14 +257,38 @@ public class PieceTable
 
     private string GetTextForRange(int fcStart, int fcEnd, Stream documentStream, bool isUnicode)
     {
-        _logger.LogInfo($"[DEBUG] GetTextForRange: fcStart={fcStart}, fcEnd={fcEnd}, isUnicode={isUnicode}");
+        _logger.LogInfo($"[DEBUG] GetTextForRange: fcStart={fcStart}, fcEnd={fcEnd}, isUnicode={isUnicode}, streamLength={documentStream.Length}");
         int length = fcEnd - fcStart;
         if (length <= 0)
+        {
+            _logger.LogInfo($"[DEBUG] GetTextForRange: Invalid length {length}, returning empty string");
             return string.Empty;
+        }
+
+        if (fcStart >= documentStream.Length)
+        {
+            _logger.LogInfo($"[DEBUG] GetTextForRange: fcStart {fcStart} >= streamLength {documentStream.Length}, returning empty string");
+            return string.Empty;
+        }
+
+        // Clamp to stream bounds
+        if (fcEnd > documentStream.Length)
+        {
+            _logger.LogInfo($"[DEBUG] GetTextForRange: Clamping fcEnd from {fcEnd} to {documentStream.Length}");
+            fcEnd = (int)documentStream.Length;
+            length = fcEnd - fcStart;
+        }
 
         using var reader = new BinaryReader(documentStream, System.Text.Encoding.UTF8, leaveOpen: true);
         documentStream.Seek(fcStart, SeekOrigin.Begin);
         byte[] bytes = reader.ReadBytes(length);
+        
+        _logger.LogInfo($"[DEBUG] GetTextForRange: Read {bytes.Length} bytes from offset {fcStart}");
+        if (bytes.Length > 0)
+        {
+            string hexPreview = BitConverter.ToString(bytes, 0, Math.Min(32, bytes.Length));
+            _logger.LogInfo($"[DEBUG] GetTextForRange: First bytes: {hexPreview}");
+        }
 
         string text;
         if (isUnicode)
@@ -312,7 +336,8 @@ public class PieceTable
         }
 
         string processedText = ProcessFieldCodes(text);
-        _logger.LogInfo($"[DEBUG] GetTextForRange returning: '{processedText}'");
+        _logger.LogInfo($"[DEBUG] GetTextForRange raw text length: {text.Length}, processed length: {processedText.Length}");
+        _logger.LogInfo($"[DEBUG] GetTextForRange returning: '{processedText.Substring(0, Math.Min(50, processedText.Length))}'");
         return CleanText(processedText);
     }
 
@@ -320,6 +345,7 @@ public class PieceTable
     /// Process Word field codes and extract only the field results.
     /// Field structure: [0x13][field code][0x14][field result][0x15]
     /// We want to keep only the field result part.
+    /// For HYPERLINK fields without field result, extract the URL from the field code.
     /// </summary>
     private static string ProcessFieldCodes(string input)
     {
@@ -330,7 +356,7 @@ public class PieceTable
         {
             char c = input[i];
             
-            if (c == '\x13') // Field begin (0x13)
+            if (c == (char)0x13) // Field begin (0x13)
             {
                 // Find the field separator (0x14) and field end (0x15)
                 int separatorPos = -1;
@@ -339,11 +365,11 @@ public class PieceTable
                 
                 for (int j = i + 1; j < input.Length; j++)
                 {
-                    if (input[j] == '\x13') // Nested field begin
+                    if (input[j] == (char)0x13) // Nested field begin
                     {
                         depth++;
                     }
-                    else if (input[j] == '\x15') // Field end
+                    else if (input[j] == (char)0x15) // Field end
                     {
                         depth--;
                         if (depth == 0)
@@ -352,7 +378,7 @@ public class PieceTable
                             break;
                         }
                     }
-                    else if (input[j] == '\x14' && depth == 1 && separatorPos == -1) // Field separator at our level
+                    else if (input[j] == (char)0x14 && depth == 1 && separatorPos == -1) // Field separator at our level
                     {
                         separatorPos = j;
                     }
@@ -366,6 +392,34 @@ public class PieceTable
                         string fieldResult = input.Substring(separatorPos + 1, endPos - separatorPos - 1);
                         sb.Append(fieldResult);
                     }
+                    else
+                    {
+                        // No field separator found, extract field code and check if it's a HYPERLINK
+                        string fieldCode = input.Substring(i + 1, endPos - i - 1);
+                        
+                        // Handle HYPERLINK fields
+                        if (fieldCode.StartsWith(" HYPERLINK ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Extract URL from HYPERLINK field
+                            string url = fieldCode.Substring(11).Trim(); // Remove " HYPERLINK "
+                            
+                            // Remove any additional parameters or quotes
+                            int spaceIndex = url.IndexOf(' ');
+                            if (spaceIndex > 0)
+                            {
+                                url = url.Substring(0, spaceIndex);
+                            }
+                            
+                            // Remove quotes if present
+                            url = url.Trim('"');
+                            
+                            sb.Append(url);
+                        }
+                        else
+                        {
+                            // For other field types without separator, skip the field
+                        }
+                    }
                     // Skip to after the field end
                     i = endPos + 1;
                 }
@@ -376,7 +430,7 @@ public class PieceTable
                     i++;
                 }
             }
-            else if (c == '\x14' || c == '\x15') // Standalone field separators/ends (shouldn't happen in well-formed text)
+            else if (c == (char)0x14 || c == (char)0x15) // Standalone field separators/ends (shouldn't happen in well-formed text)
             {
                 // Skip these control characters
                 i++;
@@ -398,17 +452,17 @@ public class PieceTable
         foreach (char c in input)
         {
             // Handle special Word control characters
-            if (c == '\x07') // Word tab character (0x07) -> convert to standard tab
+            if (c == (char)0x07) // Word tab character (0x07) -> convert to standard tab
             {
                 sb.Append('\t');
             }
-            else if (c == '\x0B') // Word line break (0x0B) -> convert to newline
+            else if (c == (char)0x0B) // Word line break (0x0B) -> convert to newline
             {
                 sb.Append('\n');
             }
             // Allow a wider range of characters including Cyrillic and special punctuation
             else if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c) ||
-                c == '\r' || c == '\n' || c == '\t' || c == '\v' ||
+                c == '\r' || c == '\n' || c == '\t' || c == '\v' || c == '~' ||
                 (c >= 'А' && c <= 'я') || // Cyrillic range
                 (c >= 'À' && c <= 'ÿ'))   // Latin-1 Supplement
             {

@@ -51,6 +51,7 @@ namespace WvWareNet.Tests
             if (!isEqual)
             {
                 Debug.Print($"Mismatch in {docPath}");
+                File.WriteAllText(Path.ChangeExtension(docPath, ".actual.txt"), result);
             }
             Assert.Equal(expected,result, true, true, true, true);
            
