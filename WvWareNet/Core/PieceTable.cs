@@ -178,8 +178,18 @@ public class PieceTable
                 
                 _logger.LogInfo($"[DEBUG] Piece {j}: fcValue=0x{fcValue:X8}, prm=0x{prm:X8}");
 
-                bool isUnicode = (fcValue & 0x40000000) != 0;
-                uint fc = fcValue & 0x3FFFFFFF;
+                bool isUnicode = (fcValue & 0x40000000) == 0; // Inverted logic - bit SET means 8-bit chars
+                uint fc;
+                if ((fcValue & 0x40000000) != 0)
+                {
+                    // If bit is set, it's 8-bit chars: clear bit and divide by 2
+                    fc = (fcValue & 0xBFFFFFFF) / 2;
+                }
+                else
+                {
+                    // If bit is clear, it's 16-bit chars: use direct offset
+                    fc = fcValue;
+                }
 
                 int cpStart = cpArray[j];
                 int cpEnd = cpArray[j + 1];
@@ -310,15 +320,24 @@ public class PieceTable
         var sb = new System.Text.StringBuilder(input.Length);
         foreach (char c in input)
         {
+            // Handle special Word control characters
+            if (c == '\x07') // Word tab character (0x07) -> convert to standard tab
+            {
+                sb.Append('\t');
+            }
+            else if (c == '\x0B') // Word line break (0x0B) -> convert to newline
+            {
+                sb.Append('\n');
+            }
             // Allow a wider range of characters including Cyrillic and special punctuation
-            if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c) ||
+            else if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c) ||
                 c == '\r' || c == '\n' || c == '\t' || c == '\v' ||
-                (c >= '\u0400' && c <= '\u04FF') || // Cyrillic range
-                (c >= '\u00A0' && c <= '\u00FF'))   // Latin-1 Supplement
+                (c >= 'А' && c <= 'я') || // Cyrillic range
+                (c >= 'À' && c <= 'ÿ'))   // Latin-1 Supplement
             {
                 sb.Append(c);
             }
-            else if (c == '\uFFFD' || c < ' ') // Replace replacement chars and control chars
+            else if (c == '�' || c < ' ') // Replace replacement chars and control chars
             {
                 // Skip these characters
             }
