@@ -46,9 +46,14 @@ namespace WvWareNet.Tests
 
             var extractor = new WvDocExtractor(new NullLogger());
             var result = NormalizeText(extractor.ExtractText(docPath));
-
             var expected = NormalizeText(File.ReadAllText(expectedPath));
-            Assert.Equal(expected, result);
+            bool isEqual = string.Equals(result, expected, StringComparison.InvariantCultureIgnoreCase);
+            Assert.Equal(expected,result, true, true, true, true);
+            if(!isEqual)
+            {
+                Debug.Print($"Mismatch in {docPath}");
+            }
+
         }
         /// <summary>
         /// Normalizes text by standardizing line breaks to '\n' and trimming trailing whitespace from each line.

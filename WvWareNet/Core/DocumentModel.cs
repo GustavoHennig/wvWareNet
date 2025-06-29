@@ -5,6 +5,7 @@ namespace WvWareNet.Core
     public class DocumentModel
     {
         public FileInformationBlock FileInfo { get; set; }
+        public Stylesheet Stylesheet { get; set; } = new Stylesheet();
         public List<Section> Sections { get; } = new List<Section>();
         public List<HeaderFooter> Headers { get; } = new List<HeaderFooter>();
         public List<HeaderFooter> Footers { get; } = new List<HeaderFooter>();
@@ -27,6 +28,8 @@ namespace WvWareNet.Core
     {
         public List<Run> Runs { get; } = new List<Run>();
         public ParagraphProperties Properties { get; set; }
+        public short StyleIndex { get; set; }
+        public string Style { get; set; }
     }
 
     public class Run

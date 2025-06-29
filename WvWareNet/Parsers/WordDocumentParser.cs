@@ -21,6 +21,12 @@ namespace WvWareNet.Parsers
 
         private Core.DocumentModel _documentModel;
 
+        private static bool IsAlphaNumeric(byte b)
+        {
+            char c = (char)b;
+            return char.IsLetterOrDigit(c);
+        }
+
         public void ParseDocument(string? password = null)
         {
             // Ensure header is parsed before reading directory entries
@@ -212,9 +218,53 @@ namespace WvWareNet.Parsers
             }
             pieceTable.AssignChpxToPieces(chpxList);
 
+            // Parse stylesheet
+            WvWareNet.Core.Stylesheet stylesheet = new WvWareNet.Core.Stylesheet();
+            _logger.LogInfo($"[DEBUG] Stylesheet info: FcStshf={fib.FcStshf}, LcbStshf={fib.LcbStshf}, tableStream.Length={tableStream?.Length ?? 0}");
+            
+            if (tableStream != null && fib.FcStshf > 0 && fib.LcbStshf > 0 && fib.FcStshf + fib.LcbStshf <= tableStream.Length)
+            {
+                byte[] stshData = new byte[fib.LcbStshf];
+                Array.Copy(tableStream, fib.FcStshf, stshData, 0, fib.LcbStshf);
+                _logger.LogInfo($"[DEBUG] Extracted stylesheet data of {stshData.Length} bytes from offset {fib.FcStshf}");
+                
+                // Log first 32 bytes of stylesheet data
+                if (stshData.Length >= 32)
+                {
+                    string hexStr = BitConverter.ToString(stshData, 0, 32);
+                    _logger.LogInfo($"[DEBUG] First 32 bytes of stylesheet: {hexStr}");
+                }
+                
+                stylesheet = WvWareNet.Core.Stylesheet.Parse(stshData);
+                _logger.LogInfo($"[DEBUG] Parsed stylesheet with {stylesheet.Styles.Count} styles");
+                
+                // Log the first few styles for debugging
+                for (int i = 0; i < Math.Min(10, stylesheet.Styles.Count); i++)
+                {
+                    var style = stylesheet.Styles[i];
+                    _logger.LogInfo($"[DEBUG] Style {style.Index}: '{style.Name}'");
+                }
+            }
+            else
+            {
+                _logger.LogWarning($"No stylesheet found via FIB - FcStshf={fib.FcStshf}, LcbStshf={fib.LcbStshf}");
+                
+                // Create basic default stylesheet with standard built-in styles
+                stylesheet = new WvWareNet.Core.Stylesheet();
+                stylesheet.Styles.Add(new WvWareNet.Core.Style { Index = 0, Name = "Normal" });
+                stylesheet.Styles.Add(new WvWareNet.Core.Style { Index = 1, Name = "heading 1" });
+                stylesheet.Styles.Add(new WvWareNet.Core.Style { Index = 2, Name = "heading 2" });
+                stylesheet.Styles.Add(new WvWareNet.Core.Style { Index = 3, Name = "heading 3" });
+                stylesheet.Styles.Add(new WvWareNet.Core.Style { Index = 4, Name = "heading 4" });
+                stylesheet.Styles.Add(new WvWareNet.Core.Style { Index = 5, Name = "heading 5" });
+                stylesheet.Styles.Add(new WvWareNet.Core.Style { Index = 6, Name = "heading 6" });
+                _logger.LogInfo("[DEBUG] Using default built-in styles as fallback");
+            }
+
             // Extract text using PieceTable and populate DocumentModel with sections and paragraphs
             _documentModel = new WvWareNet.Core.DocumentModel();
             _documentModel.FileInfo = fib; // Store FIB in the document model
+            _documentModel.Stylesheet = stylesheet; // Store stylesheet in the document model
 
             // For now, create a single default section.
             // In a more complete implementation, sections would be parsed from the document structure.
@@ -248,6 +298,28 @@ namespace WvWareNet.Parsers
                     int cpEnd = cpArray[i + 1];
                     int offset = papxOffsetArray[i];
 
+                    // Extract paragraph style from PAPX data
+                    int styleIndex = 0;
+                    if (offset > 0 && offset < tableStream.Length - 2)
+                    {
+                        // PAPX structure: [length byte][SPRMs...]
+                        // Look for SPRM 0x460B (paragraph style)
+                        byte papxLength = tableStream[offset];
+                        if (papxLength > 0 && offset + papxLength < tableStream.Length)
+                        {
+                            for (int b = offset + 1; b < offset + papxLength - 1; b++)
+                            {
+                                ushort sprm = (ushort)((tableStream[b + 1] << 8) | tableStream[b]);
+                                if (sprm == 0x460B) // Paragraph style SPRM
+                                {
+                                    if (b + 3 < tableStream.Length)
+                                        styleIndex = (ushort)((tableStream[b + 3] << 8) | tableStream[b + 2]);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
                     // Find all pieces that overlap this paragraph
                     var paraPieces = new List<int>();
                     for (int p = 0; p < pieceTable.Pieces.Count; p++)
@@ -258,6 +330,10 @@ namespace WvWareNet.Parsers
                     }
 
                     var paragraph = new WvWareNet.Core.Paragraph();
+                    paragraph.StyleIndex = (short)styleIndex;
+                    paragraph.Style = stylesheet.GetStyleName(styleIndex);
+                    
+                    _logger.LogInfo($"[DEBUG] Paragraph {i}: StyleIndex={styleIndex}, StyleName='{paragraph.Style}'");
 
                     foreach (var pIdx in paraPieces)
                     {

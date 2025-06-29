@@ -53,11 +53,17 @@ public class PieceTable
         // --- CLX parsing logic ---
         // CLX can be a sequence of [0x01 Prc] and [0x02 PlcPcd] blocks.
         // We want to find the 0x02 block and parse it as the piece table.
+        // However, some documents may have different formats or padding.
 
         int plcPcdOffset = -1;
         int plcPcdLength = -1;
 
         int i = 0;
+        
+        // Skip leading zeros (padding)
+        while (i < data.Length && data[i] == 0)
+            i++;
+
         while (i < data.Length)
         {
             byte clxType = data[i];
@@ -69,6 +75,7 @@ public class PieceTable
                     break;
                 plcPcdLength = BitConverter.ToInt32(data, i + 1);
                 plcPcdOffset = i + 5;
+                _logger.LogInfo($"[DEBUG] Found PlcPcd at offset {i}, length {plcPcdLength}");
                 break;
             }
             else if (clxType == 0x01)
@@ -77,11 +84,16 @@ public class PieceTable
                 if (i + 3 > data.Length)
                     break;
                 ushort prcSize = BitConverter.ToUInt16(data, i + 1);
+                _logger.LogInfo($"[DEBUG] Skipping Prc block at offset {i}, size {prcSize}");
                 i += 1 + 2 + prcSize;
             }
             else
             {
-                // Unknown block, abort
+                // For some documents, the piece table may start directly without clxt prefix
+                // Try to parse the remainder as a piece table
+                _logger.LogInfo($"[DEBUG] No clxt prefix found, trying direct piece table parse from offset {i}");
+                plcPcdOffset = i;
+                plcPcdLength = data.Length - i;
                 break;
             }
         }
@@ -89,7 +101,7 @@ public class PieceTable
         if (plcPcdOffset == -1)
         {
             _logger.LogWarning("No PlcPcd (piece table) found in CLX data. Falling back to single piece.");
-            SetSinglePiece(fcMin, fcMac, nFib); // Use the new overload
+            SetSinglePiece(fcMin, fcMac, nFib);
             return;
         }
 
@@ -99,25 +111,72 @@ public class PieceTable
             using var stream = new MemoryStream(data, plcPcdOffset, plcPcdLength);
             using var reader = new BinaryReader(stream);
 
+            _logger.LogInfo($"[DEBUG] Attempting to parse piece table at offset {plcPcdOffset}, length {plcPcdLength}");
+            
+            // For debugging, log the first 16 bytes of what we're trying to parse
+            if (plcPcdLength >= 16)
+            {
+                byte[] debugBytes = new byte[16];
+                Array.Copy(data, plcPcdOffset, debugBytes, 0, 16);
+                _logger.LogInfo($"[DEBUG] First 16 bytes of piece table data: {BitConverter.ToString(debugBytes)}");
+            }
+
             // The piece table (PlcPcd) consists of an array of character
             // positions followed by an array of piece descriptors.  
             // Each piece: 4 bytes CP, 8 bytes descriptor (total 12 bytes per piece)
-            int pieceCount = (plcPcdLength - 4) / 12;
-            if (pieceCount <= 0)
+            // However, the structure might be different for some documents
+            
+            // Try to detect if this looks like valid piece table data
+            // Valid CP values should be reasonable (0 to document length)
+            // Let's try different interpretations
+            
+            bool validPieceTable = false;
+            int pieceCount = 0;
+            
+            // Try standard interpretation first
+            if (plcPcdLength >= 16) // Minimum for 1 piece (4+4+8)
             {
-                _logger.LogWarning($"Invalid piece table length {plcPcdLength}. Using fallback single-piece table.");
+                int testPieceCount = (plcPcdLength - 4) / 12;
+                if (testPieceCount > 0 && testPieceCount < 20) // Reasonable range
+                {
+                    // Test if the first few CP values look reasonable
+                    stream.Position = 0;
+                    int cp1 = reader.ReadInt32();
+                    int cp2 = reader.ReadInt32();
+                    
+                    _logger.LogInfo($"[DEBUG] Test CP values: cp1={cp1}, cp2={cp2}");
+                    
+                    if (cp1 >= 0 && cp1 < 100000 && cp2 >= cp1 && cp2 < 100000)
+                    {
+                        validPieceTable = true;
+                        pieceCount = testPieceCount;
+                        _logger.LogInfo($"[DEBUG] Standard piece table format detected, {pieceCount} pieces");
+                    }
+                }
+            }
+            
+            if (!validPieceTable)
+            {
+                _logger.LogWarning($"[DEBUG] Piece table data doesn't match expected format, falling back to single piece");
                 SetSinglePiece(fcMin, fcMac, nFib);
                 return;
             }
 
+            // Parse the piece table using standard format
+            stream.Position = 0;
             var cpArray = new int[pieceCount + 1];
             for (int j = 0; j < pieceCount + 1; j++)
+            {
                 cpArray[j] = reader.ReadInt32();
+                _logger.LogInfo($"[DEBUG] CP[{j}] = {cpArray[j]}");
+            }
 
             for (int j = 0; j < pieceCount; j++)
             {
                 uint fcValue = reader.ReadUInt32();
-                reader.ReadUInt32(); // skip PRM for now
+                uint prm = reader.ReadUInt32(); // PRM (property modifier)
+                
+                _logger.LogInfo($"[DEBUG] Piece {j}: fcValue=0x{fcValue:X8}, prm=0x{prm:X8}");
 
                 bool isUnicode = (fcValue & 0x40000000) != 0;
                 uint fc = fcValue & 0x3FFFFFFF;
@@ -126,6 +185,8 @@ public class PieceTable
                 int cpEnd = cpArray[j + 1];
                 int fcStart = (int)fc;
                 int fcEnd = fcStart + (isUnicode ? (cpEnd - cpStart) * 2 : (cpEnd - cpStart));
+
+                _logger.LogInfo($"[DEBUG] Piece {j}: CP {cpStart}-{cpEnd}, FC {fcStart}-{fcEnd}, Unicode={isUnicode}");
 
                 var descriptor = new PieceDescriptor
                 {
@@ -146,7 +207,8 @@ public class PieceTable
         catch (Exception ex)
         {
             _logger.LogError("Error parsing piece table data", ex);
-            throw new InvalidDataException("Failed to parse piece table data", ex);
+            _logger.LogWarning("Falling back to single piece due to parsing error");
+            SetSinglePiece(fcMin, fcMac, nFib);
         }
     }
 

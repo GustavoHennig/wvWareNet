@@ -245,6 +245,7 @@ public class FileInformationBlock
             int offsetPlcfhdd = 0x00F2;
             int offsetPlcfftn = 0x012A;
             int offsetPlcftxbxTxt = 0x01F6;
+            int offsetStshf = 0x00A0; // Stylesheet offset for Word 6/95
 
             if (fib.NFib >= 104) // Word 97 and later
             {
@@ -254,6 +255,7 @@ public class FileInformationBlock
                 offsetPlcfhdd = 0x0142;
                 offsetPlcfftn = 0x015E;
                 offsetPlcftxbxTxt = 0x01C6;
+                offsetStshf = 0x00A2; // Corrected stylesheet offset for Word 97+
             }
 
             // Read version-specific properties
@@ -281,6 +283,11 @@ public class FileInformationBlock
             ms.Position = offsetPlcfftn;
             fib.FcPlcfftn = reader.ReadInt32();
             fib.LcbPlcfftn = reader.ReadUInt32();
+
+            // Read stylesheet information
+            ms.Position = offsetStshf;
+            fib.FcStshf = reader.ReadInt32();
+            fib.LcbStshf = reader.ReadUInt32();
 
             return fib;
         }
