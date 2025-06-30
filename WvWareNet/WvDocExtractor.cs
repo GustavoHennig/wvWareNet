@@ -120,13 +120,24 @@ public class WvDocExtractor
 
         _logger.LogInfo($"[Extractor] Text after WordDocumentParser: '{extractedText?.Substring(0, Math.Min(50, extractedText.Length)) ?? "null"}'");
 
-            return extractedText;
+        // Post-processing: remove unwanted chars 0A (LF) and 0C (FF)
+        extractedText = RemoveUnwantedChars(extractedText);
+
+        return extractedText;
     }
 
-        private string ExtractTextFallback(byte[] fileData)
-        {
-            // We should avoid using fallback implementation
-            _logger.LogWarning("Using fallback text extraction is discouraged");
-            return string.Empty;
-        }
+    private string RemoveUnwantedChars(string input)
+    {
+        if (input == null)
+            return null;
+        // Remove LF (\n, 0x0A) and FF (\f, 0x0C)
+        return input.Replace("\f", "");
+    }
+
+    private string ExtractTextFallback(byte[] fileData)
+    {
+        // We should avoid using fallback implementation
+        _logger.LogWarning("Using fallback text extraction is discouraged");
+        return string.Empty;
+    }
 }
