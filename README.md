@@ -8,7 +8,7 @@ This project is a complete, from-scratch rewrite of the original `wvWare` (Word 
 - **No P/Invoke or interop**
 - **All logic implemented natively in C#**
 
-See `REWRITE_PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current development updates.
+See `PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current development updates.
 
 ## Goals
 

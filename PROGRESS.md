@@ -10,13 +10,13 @@
 -   **Created New Porting Plan**: A new, detailed plan has been created as `PORTING_PLAN.md`.
     -   This plan focuses specifically on porting the remaining text-centric features from `decode_complex.c`.
     -   It prioritizes the implementation of a SPRM handling framework, followed by list/list-override parsing, and finally section/document property integration.
-    -   The old `REWRITE_PLAN.md` will be preserved for historical purposes.
+    -   The old `PLAN.md` will be preserved for historical purposes.
 
 ## 2025-06-24
 
 - Project direction changed: Full C# rewrite initiated
 - README.md updated to reflect new goals
-- Detailed rewrite plan created in REWRITE_PLAN.md
+- Detailed rewrite plan created in PLAN.md
 - .NET 9 solution and project structure created
 - Coding standards established
 
@@ -93,9 +93,9 @@ vwWare-toDotNet.sln
 
 ## Next Steps
 
-The immediate focus is on building the foundational SPRM handling framework as outlined in `PORTING_PLAN.md`.
+The immediate focus is on building the foundational SPRM handling framework as outlined in `PLAN_DECODE_COMPLEX.md`.
 
-1.  **Phase 1 (from `PORTING_PLAN.md`): Foundational - Comprehensive SPRM Handling**
+1.  **Phase 1 (from `PLAN_DECODE_COMPLEX.md`): Foundational - Comprehensive SPRM Handling**
     -   Implement core SPRM data structures.
     -   Develop the `SprmApplicator` service.
     -   Implement the application logic for paragraph (PAP) and character (CHP) properties.
@@ -114,7 +114,7 @@ This table tracks original `wvWare` C files, useful for reference in C# port. Al
 | wvWare.c           | [ ]       | Main logic entry point                                                                                                           |
 | wvTextEngine.c     | [ ]       | Text extraction core                                                                                                             |
 | wvparse.c          | [ ]       | Parser logic                                                                                                                     |
-| **decode_complex.c** | **[✓] Analyzed** | **Analysis complete. Porting plan created in `PORTING_PLAN.md`. Lacks robust SPRM handling, which is the next major task.** |
+| **decode_complex.c** | **[✓] Analyzed** | **Analysis complete. Porting plan created in `PLAN_DECODE_COMPLEX.md`. Lacks robust SPRM handling, which is the next major task.** |
 | fib.c              | [x]       | File Information Block                                                                                                           |
 | plcf.c             | [x]       | Piece table logic                                                                                                                |
 | text.c             | [ ]       | Text-related parsing                                                                                                             |
