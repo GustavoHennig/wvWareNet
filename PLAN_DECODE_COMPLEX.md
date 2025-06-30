@@ -2,7 +2,7 @@
 
 ## 1. Objective
 
-This document outlines the tasks required to port the remaining text-centric parsing and formatting features from the original `wvWare/decode_complex.c` file into the `WvWareNet` C# project.
+This document outlines the tasks required to implement the remaining text-centric parsing and formatting features described in the wvWare `decode_complex.c` file, using it as a reference to understand the DOC format and guide the C# implementation. No code is copied or directly ported; all implementation is original to this repository.
 
 The primary goal is to accurately extract not just the text, but also the structural and formatting information that can be represented in a plain text format, such as lists, indentation, and basic text styling (bold, italic).
 

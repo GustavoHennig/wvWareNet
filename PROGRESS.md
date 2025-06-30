@@ -107,7 +107,7 @@ The immediate focus is on building the foundational SPRM handling framework as o
 
 ## Legacy Port Tracking
 
-This table tracks original `wvWare` C files, useful for reference in C# port. All logic is to be rewritten idiomatically.
+This table tracks wvWare C files that were used as references to understand the DOC format and guide the C# implementation. No code was copied or directly ported; all implementation is original to this repository.
 
 | C Source File      | Status    | Notes                                                                                                                            |
 | ------------------ | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -123,4 +123,3 @@ This table tracks original `wvWare` C files, useful for reference in C# port. Al
 | wvConfig.c         | [ ]       | Possibly minimal, for setup                                                                                                      |
 
 For complete legacy file list, see original progress archive.
-

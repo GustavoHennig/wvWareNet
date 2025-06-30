@@ -103,7 +103,10 @@
 - [ ] Error handling improvements
 - [ ] Code cleanup and documentation
 
-## Key C Files to Reference
+## Reference C Files
+
+The following wvWare C source files were used as references to understand the DOC format and guide the architecture of this project. No code was copied or directly ported; all implementation is original to this repository.
+
 - `wvWare.c` (main entry point)
 - `wvTextEngine.c` (text extraction logic)
 - `wvparse.c`, `fib.c`, `plcf.c`, `text.c` (parsing structures)

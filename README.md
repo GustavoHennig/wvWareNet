@@ -1,8 +1,7 @@
 # vwWare-toDotNet
 
-## Project Status: Full C# Rewrite — 🚧 In Progress
 
-This project is a complete, from-scratch rewrite of the original `wvWare` (Word document parser) in modern C#.
+This project is a complete, from-scratch write of a Word97 document parser based on `wvWare` in C#.
 
 - **No native code dependencies**
 - **No P/Invoke or interop**
@@ -14,7 +13,7 @@ See `PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current dev
 
 - 100% managed codebase
 - Modern, maintainable, and idiomatic C#
-- Faithful to the original `wvWare` functionality
+- Inspired by the core functionality of `wvWare`
 - Focus on text extraction feature only
 
 ## Scope
@@ -38,10 +37,14 @@ See `PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current dev
 The parser attempts to read documents produced by Word 6, Word 95 and Word 97.
 Encrypted files are detected and will trigger a clear error message.
 
-## Original Project
+## Reference Project
 
-- Based on: [wvWave on SourceForge](https://sourceforge.net/projects/wvware/)
-- This project is a modern reimplementation in C#.
+- wvWare ([wvWave on SourceForge](https://sourceforge.net/projects/wvware/)) was used as a main reference to understand the DOC format and as inspiration for this project. No code was copied or directly ported; all implementation is original to this repository.
+
+## References
+
+- The main reference for this project is the official Microsoft Word Binary File Format specification, included as `MS-DOC-spec-compressed.pdf` in this repository. All rights to this document belong to Microsoft.
+- AbiWord, OnlyOffice and LibreOffice codebases were consulted as secondary references to help understand the DOC file format.
 
 ## License
 
