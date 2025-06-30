@@ -46,4 +46,19 @@ public class PieceDescriptor
     /// The ending file position (FC) for this piece
     /// </summary>
     public int FcEnd { get; set; }
+
+    public static PieceDescriptor Parse(byte[] bytes)
+    {
+        var descriptor = new PieceDescriptor();
+        using (var stream = new MemoryStream(bytes))
+        using (var reader = new BinaryReader(stream))
+        {
+            // First 2 bytes are reserved
+            reader.ReadBytes(2);
+            descriptor.FilePosition = reader.ReadUInt32();
+            // Next 2 bytes are PRM, which we can ignore for now
+            reader.ReadBytes(2);
+        }
+        return descriptor;
+    }
 }

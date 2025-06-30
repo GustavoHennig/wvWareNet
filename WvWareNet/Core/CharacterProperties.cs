@@ -42,4 +42,9 @@ public class CharacterProperties
         FarEastLanguageId = 0x0400;
         CharacterScaling = 100; // 100% scaling
     }
+
+    public object Clone()
+    {
+        return this.MemberwiseClone();
+    }
 }

@@ -40,8 +40,14 @@ namespace WvWareNet.Core
 
     public class Footnote
     {
+        public FootnoteType Type { get; set; }
         public int ReferenceId { get; set; }
         public List<Paragraph> Paragraphs { get; } = new List<Paragraph>();
+    }
+
+    public enum FootnoteType
+    {
+        Default
     }
 
     public class HeaderFooter
