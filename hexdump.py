@@ -1,17 +1,33 @@
 import sys
-import argparse
 
-def main():
-    parser = argparse.ArgumentParser(description='Hex dump of a file section')
-    parser.add_argument('file', help='File to dump')
-    parser.add_argument('--offset', type=int, default=0, help='Start offset')
-    parser.add_argument('--length', type=int, default=256, help='Number of bytes to dump')
-    args = parser.parse_args()
+def hexdump(file_path):
+    try:
+        with open(file_path, 'rb') as f:
+            offset = 0
+            while True:
+                chunk = f.read(16)
+                if not chunk:
+                    break
+                
+                # Format the offset
+                print(f"{offset:08x}  ", end='')
+                
+                # Format hex bytes
+                hex_str = ' '.join(f"{b:02x}" for b in chunk)
+                hex_str += '   ' * (16 - len(chunk))  # Padding for incomplete lines
+                print(hex_str[:23], end=' ')
+                print(hex_str[23:], end=' ')
+                
+                # Format ASCII representation
+                ascii_str = ''.join(chr(b) if 32 <= b <= 126 else '.' for b in chunk)
+                print(f"|{ascii_str}|")
+                
+                offset += len(chunk)
+    except Exception as e:
+        print(f"Error reading file: {e}")
 
-    with open(args.file, "rb") as f:
-        f.seek(args.offset)
-        data = f.read(args.length)
-        print(data.hex())
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python hexdump.py <file>")
+        sys.exit(1)
+    hexdump(sys.argv[1])
