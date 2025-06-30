@@ -14,4 +14,6 @@ Ensure that the translated C# code in the `WvWareNet` project accurately reflect
 
 ## General Instructions
 - Follow standard C# coding conventions and best practices.
+- Do not hardcode strings trying to simulate the expected result.
+- Do not use reflection.
 - The resulting code should be clean, readable, and maintainable.
