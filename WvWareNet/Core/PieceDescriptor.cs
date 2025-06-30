@@ -55,7 +55,9 @@ public class PieceDescriptor
         {
             // First 2 bytes are reserved
             reader.ReadBytes(2);
-            descriptor.FilePosition = reader.ReadUInt32();
+            uint fc = reader.ReadUInt32();
+            descriptor.IsUnicode = (fc & 0x40000000) != 0;
+            descriptor.FilePosition = fc & 0x3FFFFFFF; // Mask out the Unicode flag
             // Next 2 bytes are PRM, which we can ignore for now
             reader.ReadBytes(2);
         }
