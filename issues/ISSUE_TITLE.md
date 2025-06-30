@@ -42,6 +42,26 @@ dotnet run --project WvWareNetConsole examples/title.doc
 - Do not use reflection.
 - This parser must work with any .doc file.
 
+## What we found 
+
+If you see, the missing words are located at the position 0x5222 to 0x524C in the file `examples/title.doc`. The parser is not extracting these words correctly, which is why they are missing from the output.
+You need to find out how to place these words in the right place.
+
+
+```
+/* P:\Dev\Experiments\vwWare-toDotNet\examples\title.doc (30/06/2025 17:24:49)
+   StartOffset(h): 00005222, EndOffset(h): 0000524C, Length(h): 0000002B */
+
+byte[] rawData = {
+	0x68, 0x00, 0x65, 0x00, 0x61, 0x00, 0x64, 0x00, 0x69, 0x00, 0x6E, 0x00,
+	0x67, 0x00, 0x31, 0x00, 0x20, 0x00, 0x68, 0x00, 0x65, 0x00, 0x61, 0x00,
+	0x64, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x32, 0x00, 0x20, 0x00,
+	0x20, 0x00, 0x62, 0x00, 0x69, 0x00, 0x67
+};
+
+```
+
+
 ## Execution plan for AI
 
 1.  **Analyze `examples/title.doc`:**
