@@ -17,6 +17,9 @@ Matches `examples/section3.actual.txt`, which is extremely large (likely due to 
 - Please check `/wvWare` folder as reference to understand how the parse works (C version).
 - You can also check the folder `/OnlyOffice-MsBinaryFile` for a different parser written in C++.
 
+## What we know
+The problem is the variable `paraCount` in @/WvWareNet/Parsers/WordDocumentParser.cs, the value is 2271 (+/-) that make non sense. And `_documentModel.Sections.Add(currentSection);` it adds hundreds of sections since the doc has only some. Something is not right there.
+
 ## Important
 - Do not hardcode solutions.
 - Do not use reflection.
