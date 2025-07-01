@@ -30,7 +30,7 @@ namespace WvWareNet.Tests
             }
 
             return docFiles
-                .Where(w => File.Exists(Path.ChangeExtension(  w, ".expected.txt")))
+                .Where(w => File.Exists(Path.ChangeExtension(w, ".expected.txt")))
                 .Select(doc => new object[] { doc, Path.ChangeExtension(doc, ".expected.txt") });
         }
 
@@ -53,8 +53,12 @@ namespace WvWareNet.Tests
                 Debug.Print($"Mismatch in {docPath}");
                 File.WriteAllText(Path.ChangeExtension(docPath, ".actual.txt"), result);
             }
-            Assert.Equal(expected,result, true, true, true, true);
-           
+            else
+            {
+                File.Delete(Path.ChangeExtension(docPath, ".actual.txt"));
+            }
+            Assert.Equal(expected, result, true, true, true, true);
+
 
         }
         /// <summary>

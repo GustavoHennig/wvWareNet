@@ -22,7 +22,9 @@ public class DocParsingTests
     [MemberData(nameof(DocFiles))]
     public void AllSampleDocsParse(string fileName)
     {
-        string filePath = Path.Combine(AppContext.BaseDirectory, fileName);
+        var baseDir = AppContext.BaseDirectory;
+        var examplesDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "examples"));
+        string filePath = Path.Combine(examplesDir, fileName);
         Assert.True(File.Exists(filePath), $"Sample file not found: {filePath}");
 
         var extractor = new WvDocExtractor(new ConsoleLogger());
@@ -30,7 +32,7 @@ public class DocParsingTests
         Assert.False(string.IsNullOrWhiteSpace(text));
     }
 
-    [Fact]
+    [Fact(Skip = "This test is for manual execution on an external folder and is not configured to run in the automated test suite.")]
     public void ConvertAllDocsInExternalFolderToTextWithWvSuffix()
     {
         string folder = @"";

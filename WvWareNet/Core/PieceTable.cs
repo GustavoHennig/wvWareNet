@@ -30,22 +30,22 @@ public class PieceTable
         }
     }
 
-    public void Parse(byte[] data, uint fcMin, uint fcMac, ushort nFib)
+    public void Parse(byte[] clxData, uint fcMin, uint fcMac, ushort nFib)
     {
         _pieces.Clear();
-        if (data == null || data.Length == 0)
+        if (clxData == null || clxData.Length == 0)
         {
             _logger.LogWarning("Attempted to parse empty piece table data");
             return;
         }
 
         // DEBUG: Print first 32 bytes of clxData and its length
-        Console.WriteLine($"[DEBUG] PieceTable.Parse: data.Length={data.Length}");
-        Console.WriteLine($"[DEBUG] PieceTable.Parse: first 32 bytes: {BitConverter.ToString(data, 0, Math.Min(32, data.Length))}");
+        Console.WriteLine($"[DEBUG] PieceTable.Parse: data.Length={clxData.Length}");
+        Console.WriteLine($"[DEBUG] PieceTable.Parse: first 32 bytes: {BitConverter.ToString(clxData, 0, Math.Min(32, clxData.Length))}");
         Console.WriteLine("[DEBUG] PieceTable.Parse: full CLX data:");
-        for (int dbg_i = 0; dbg_i < data.Length; dbg_i++)
+        for (int dbg_i = 0; dbg_i < clxData.Length; dbg_i++)
         {
-            Console.Write($"{data[dbg_i]:X2} ");
+            Console.Write($"{clxData[dbg_i]:X2} ");
             if ((dbg_i + 1) % 16 == 0) Console.WriteLine();
         }
         Console.WriteLine();
@@ -61,19 +61,19 @@ public class PieceTable
         int i = 0;
         
         // Skip leading zeros (padding)
-        while (i < data.Length && data[i] == 0)
+        while (i < clxData.Length && clxData[i] == 0)
             i++;
 
-        while (i < data.Length)
+        while (i < clxData.Length)
         {
-            byte clxType = data[i];
+            byte clxType = clxData[i];
             if (clxType == 0x02)
             {
                 // This is the Pcdt block. The next four bytes give the
                 // length of the PlcPcd structure that follows.
-                if (i + 5 > data.Length)
+                if (i + 5 > clxData.Length)
                     break;
-                plcPcdLength = BitConverter.ToInt32(data, i + 1);
+                plcPcdLength = BitConverter.ToInt32(clxData, i + 1);
                 plcPcdOffset = i + 5;
                 _logger.LogInfo($"[DEBUG] Found PlcPcd at offset {i}, length {plcPcdLength}");
                 break;
@@ -81,9 +81,9 @@ public class PieceTable
             else if (clxType == 0x01)
             {
                 // This is a Prc (property modifier) block, skip it
-                if (i + 3 > data.Length)
+                if (i + 3 > clxData.Length)
                     break;
-                ushort prcSize = BitConverter.ToUInt16(data, i + 1);
+                ushort prcSize = BitConverter.ToUInt16(clxData, i + 1);
                 _logger.LogInfo($"[DEBUG] Skipping Prc block at offset {i}, size {prcSize}");
                 i += 1 + 2 + prcSize;
             }
@@ -93,7 +93,7 @@ public class PieceTable
                 // Try to parse the remainder as a piece table
                 _logger.LogInfo($"[DEBUG] No clxt prefix found, trying direct piece table parse from offset {i}");
                 plcPcdOffset = i;
-                plcPcdLength = data.Length - i;
+                plcPcdLength = clxData.Length - i;
                 break;
             }
         }
@@ -108,7 +108,7 @@ public class PieceTable
         // Now parse the PlcPcd as the piece table
         try
         {
-            using var stream = new MemoryStream(data, plcPcdOffset, plcPcdLength);
+            using var stream = new MemoryStream(clxData, plcPcdOffset, plcPcdLength);
             using var reader = new BinaryReader(stream);
 
             _logger.LogInfo($"[DEBUG] Attempting to parse piece table at offset {plcPcdOffset}, length {plcPcdLength}");
@@ -117,7 +117,7 @@ public class PieceTable
             if (plcPcdLength >= 16)
             {
                 byte[] debugBytes = new byte[16];
-                Array.Copy(data, plcPcdOffset, debugBytes, 0, 16);
+                Array.Copy(clxData, plcPcdOffset, debugBytes, 0, 16);
                 _logger.LogInfo($"[DEBUG] First 16 bytes of piece table data: {BitConverter.ToString(debugBytes)}");
             }
 
@@ -298,41 +298,9 @@ public class PieceTable
         }
         else
         {
-            // Try 1252, then 1251, then ISO-8859-1 if output looks garbled
+            // Use Windows-1252 by default, which is the most common for non-Unicode Word docs
             text = System.Text.Encoding.GetEncoding(1252).GetString(bytes);
-            if (text.Count(c => c == '�' || c == '?') > text.Length / 4)
-            {
-                try
-                {
-                    var alt = System.Text.Encoding.GetEncoding(1251).GetString(bytes);
-                    if (alt.Count(c => c == '�' || c == '?') < text.Count(c => c == '�' || c == '?'))
-                    {
-                        text = alt;
-                        _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1251");
-                    }
-                    else
-                    {
-                        alt = System.Text.Encoding.GetEncoding("iso-8859-1").GetString(bytes);
-                        if (alt.Count(c => c == '�' || c == '?') < text.Count(c => c == '�' || c == '?'))
-                        {
-                            text = alt;
-                            _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as ISO-8859-1");
-                        }
-                        else
-                        {
-                            _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1252 (fallback, garbled)");
-                        }
-                    }
-                }
-                catch
-                {
-                    _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1252 (fallback, exception)");
-                }
-            }
-            else
-            {
-                _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1252");
-            }
+            _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1252");
         }
 
         string processedText = ProcessFieldCodes(text);
@@ -468,7 +436,7 @@ public class PieceTable
             {
                 sb.Append(c);
             }
-            else if (c == '�' || c < ' ') // Replace replacement chars and control chars
+            else if (c == '\0' || c < ' ') // Replace null chars and control chars
             {
                 // Skip these characters
             }
@@ -478,7 +446,7 @@ public class PieceTable
 
     /// <summary>
     /// Attempt to determine if the pieces in a Word95 document contain
-    /// 16‑bit text. This mirrors the heuristic used by wvGuess16bit in the
+    /// 16-bit text. This mirrors the heuristic used by wvGuess16bit in the
     /// original wvWare project.
     /// </summary>
     /// <param name="fcValues">File positions for each piece.</param>

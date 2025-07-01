@@ -301,11 +301,11 @@ namespace WvWareNet.Parsers
                     int cpEnd = cpArray[i + 1];
                     int offset = papxOffsetArray[i];
 
-                    // Only process paragraphs within the main document text range
+                    // Stop processing if we're past the end of the main document text
                     if (cpStart >= (int)fib.CcpText)
                     {
-                        _logger.LogInfo($"[DEBUG] Skipping paragraph {i} at CP {cpStart} (beyond main text range {fib.CcpText})");
-                        continue;
+                        _logger.LogInfo($"[DEBUG] Stopping paragraph processing at index {i} because CP {cpStart} is beyond CcpText {fib.CcpText}.");
+                        break;
                     }
                     
                     // Clamp cpEnd to the main text boundary
