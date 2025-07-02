@@ -13,6 +13,12 @@ Fastsaved italic text
 Fastsaved bold text
 ```
 
+## To run
+
+```shell
+dotnet run --project .\WvWareNetConsole\WvWareNetConsole.csproj .\examples\fastsavedmix.doc
+```
+
 ## Additional Info
 
 Read the markdown files in this project if you need more information.

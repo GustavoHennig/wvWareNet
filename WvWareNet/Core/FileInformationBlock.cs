@@ -272,9 +272,16 @@ public class FileInformationBlock
             fib.FcPlcfbtePapx = reader.ReadInt32();
             fib.LcbPlcfbtePapx = reader.ReadUInt32();
 
+            // Read CLX information
             ms.Position = offsetClx;
             fib.FcClx = reader.ReadInt32();
             fib.LcbClx = reader.ReadUInt32();
+            
+            // Debugging: Output CLX values for fast saved documents
+            if (fib.FDot || fib.CQuickSaves > 1)
+            {
+                System.Console.WriteLine($"[DEBUG] Fast Save detected - CLX Offset: {fib.FcClx}, Length: {fib.LcbClx}");
+            }
 
             ms.Position = offsetPlcfhdd;
             fib.FcPlcfhdd = reader.ReadInt32();
