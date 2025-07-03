@@ -29,6 +29,16 @@ namespace WvWareNet.Tests
                 docFiles.AddRange(Directory.GetFiles(examplesLocalDir, "*.doc"));
             }
 
+            docFiles
+                .Where(w => !File.Exists(Path.ChangeExtension(w, ".expected.txt")))
+                .ToList()
+                .ForEach(doc =>
+                {
+                    Debug.Print($"Expected file not found for {doc}, skipping test.");
+                    File.WriteAllText(Path.ChangeExtension(doc, ".expected.txt"), "Expected text not provided.");
+                });
+
+
             return docFiles
                 .Where(w => File.Exists(Path.ChangeExtension(w, ".expected.txt")))
                 .Select(doc => new object[] { doc, Path.ChangeExtension(doc, ".expected.txt") });
@@ -38,6 +48,7 @@ namespace WvWareNet.Tests
         [MemberData(nameof(DocFiles))]
         public void ExtractedText_EqualsExpectedFile(string docPath, string expectedPath)
         {
+          
             if (!File.Exists(expectedPath))
             {
                 Debug.Print($"Expected file not found: {expectedPath}");

@@ -5,6 +5,7 @@ WvWareNetConsole/*.txt
 WvWareNetWord97Working/
 examples/out/
 examples/*.txt
+!examples/*.expected.txt
 examples-local/
 WvWareNet95-97Working/
 MsBinaryFile

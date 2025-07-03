@@ -1,13 +1,16 @@
-# PowerShell script to compare 4 DOC to TXT converters on all .doc files in a folder
+# PowerShell script to compare DOC to TXT converters on all .doc files in a folder
 
 param(
     [string]$InputFolder = ".\examples",
     [string]$OutputFolder = ".\examples\out",
     [string]$DtExePath = ".\examples\dt.exe",
+    [string]$AntiwordExePath = "c:\antiword\antiword.exe",
     [string]$AbiwordPath = "C:\Program Files (x86)\AbiWord\bin\abiword.exe",
     [string]$LibreOfficePath = "C:\Program Files\LibreOffice\program\soffice.exe",
     [string]$WvWareNetPath = ".\WvWareNetConsole\bin\Debug\net9.0\WvWareNetConsole.exe"
 )
+
+$env:HOME=$env:USERPROFILE
 
 if (!(Test-Path $OutputFolder)) {
     New-Item -ItemType Directory -Path $OutputFolder | Out-Null
@@ -18,9 +21,13 @@ Get-ChildItem -Path $InputFolder -Filter *.doc | ForEach-Object {
     $docFile = $_.FullName
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($_.Name)
 
-    # dt.exe
+    # doctotext.exe
     $dtOut = Join-Path $OutputFolder "$baseName.dt.txt"
     & $DtExePath $docFile > $dtOut
+
+    # antiword.exe
+    $antiwordOut = Join-Path $OutputFolder "$baseName.antiword.txt"
+    & $AntiwordExePath $docFile > $antiwordOut
 
     # Abiword
     $abiOut = Join-Path $OutputFolder "$baseName.abiword.txt"

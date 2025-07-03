@@ -1,4 +1,4 @@
-# vwWare-toDotNet
+# vwWare-toDotNet (TODO: rename me)
 
 
 This project is a complete, from-scratch write of a Word97 document parser based on `wvWare` in C#.
@@ -18,11 +18,13 @@ See `PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current dev
 
 ## Scope
 
-- Input: Microsoft Word `.doc` (binary, pre-2007) files
-- Must support Word 6.0, Word 95 (7.0), and Word 97 (8.0)
-- Output: Plain text extracted from the document
-- Only extract-to-text feature from original wvWare is targeted
-- Not a line-by-line port, but a clean architectural redesign in C#
+- **Input**: Microsoft Word `.doc` files (pre-2007 binary format)
+  - Word 6.0 (v6)
+  - Word 95 (v7)
+  - Word 97 (v8)
+- **Output**: Plain extracted text
+- No support for layout, images, annotations, or embedded objects
+
 
 ## Key Design Constraints
 
@@ -37,18 +39,37 @@ See `PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current dev
 The parser attempts to read documents produced by Word 6, Word 95 and Word 97.
 Encrypted files are detected and will trigger a clear error message.
 
-## Reference Project
 
-- wvWare ([wvWave on SourceForge](https://sourceforge.net/projects/wvware/)) was used as a main reference to understand the DOC format and as inspiration for this project. No code was copied or directly ported; all implementation is original to this repository.
+## Reference Projects and Implementations
 
-## References
+This project is inspired by and informed by several existing open-source implementations of the Word Binary Format:
 
-- The main reference for this project is the official Microsoft Word Binary File Format specification, included as `MS-DOC-spec-compressed.pdf` in this repository. All rights to this document belong to Microsoft.
-- AbiWord, OnlyOffice and LibreOffice codebases were consulted as secondary references to help understand the DOC file format.
+| Name              | Language     | Description                                                              | Link                                                                  |
+|-------------------|--------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------|
+| **wvWare**        | C            | Original GPL Word97 `.doc` text extractor                                | [SourceForge](https://sourceforge.net/projects/wvware/)               |
+| **OnlyOffice**    | C++          | Proprietary editor with open-source core, includes DOC parsing           | [GitHub](https://github.com/ONLYOFFICE/core/tree/master/MsBinaryFile) |
+| **Antiword**      | C            | Lightweight Word `.doc` to text/postscript converter                     | [GitHub Mirror](https://github.com/grobian/antiword)                         |
+| **Apache POI**    | Java         | Java API for Microsoft Documents, includes Word97 support via HWPF       | [Apache POI - HWPF](https://poi.apache.org/hwpf/index.html)           |
+| **b2xtranslator** | C#           | Open XML SDK-based translator, also parses legacy binary formats         | [GitHub](https://github.com/EvolutionJobs/b2xtranslator)              |
+| **LibreOffice**   | C++          | Full office suite with robust support for legacy DOC files               | [GitHub](https://github.com/LibreOffice/core)                         |
+| **Catdoc**        | C            | Lightweight Word `.doc` to text converter                                | [GitHub Mirror](https://github.com/petewarden/catdoc)                        |
+| **DocToText**     | C++          | Lightweight any document file to text converter                          | [GitHub](https://github.com/tokgolich/doctotext)                      |
+
+
+
+
+## Binary Format Specification
+
+This implementation relies heavily on:
+
+- **Microsoft Office Binary File Format Specification**  
+  Included as `MS-DOC-spec-compressed.pdf` in this repository.  
+  All rights to this document belong to Microsoft.
+
 
 ## License
 
-This project is based on the original wvWave, licensed under the GNU GPL. See COPYING for details.
+Licensed under the GNU GPL. See COPYING for details.
 
 ## Running Tests
 

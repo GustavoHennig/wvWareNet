@@ -178,6 +178,16 @@ public class PieceTable
                 
                 _logger.LogInfo($"[DEBUG] Piece {j}: fcValue=0x{fcValue:X8}, prm=0x{prm:X8}");
 
+                bool flag31 = (fcValue & 0x80000000) != 0;  // bit 31
+                bool flag30 = (fcValue & 0x40000000) != 0;  // bit 30 (your current)
+                bool flag0 = (fcValue & 0x00000001) != 0;  // bit 0
+
+                bool isCompressed = (fcValue & 0x1) != 0;
+                uint fcccc = fcValue >> 1;
+
+                _logger.LogInfo($"Flags: bit31={flag31}, bit30={flag30}, bit0={flag0}, isCompressed={isCompressed}, fcccc={fcccc}");
+
+
                 bool isUnicode = (fcValue & 0x40000000) == 0; // Inverted logic - bit SET means 8-bit chars
                 uint fc;
                 if ((fcValue & 0x40000000) != 0)
@@ -222,20 +232,20 @@ public class PieceTable
         }
     }
 
-    public string GetTextForPiece(int index, Stream documentStream)
+    public string GetTextForPiece(int index, Stream documentStream, int? codePage = null)
     {
         if (index < 0 || index >= _pieces.Count)
             throw new ArgumentOutOfRangeException(nameof(index));
 
         var piece = _pieces[index];
-        return GetTextForRange(piece.FcStart, piece.FcEnd, documentStream, piece.IsUnicode);
+        return GetTextForRange(piece.FcStart, piece.FcEnd, documentStream, piece.IsUnicode, codePage);
     }
 
     /// <summary>
     /// Retrieve text for an arbitrary file position range. The range may span
     /// multiple pieces and does not need to align to piece boundaries.
     /// </summary>
-    public string GetTextForRange(int fcStart, int fcEnd, Stream documentStream)
+    public string GetTextForRange(int fcStart, int fcEnd, Stream documentStream, int? codePage = null)
     {
         if (fcEnd <= fcStart)
             return string.Empty;
@@ -249,15 +259,15 @@ public class PieceTable
             if (start >= end)
                 continue;
 
-            sb.Append(GetTextForRange(start, end, documentStream, piece.IsUnicode));
+            sb.Append(GetTextForRange(start, end, documentStream, piece.IsUnicode, codePage));
         }
 
         return sb.ToString();
     }
 
-    private string GetTextForRange(int fcStart, int fcEnd, Stream documentStream, bool isUnicode)
+    private string GetTextForRange(int fcStart, int fcEnd, Stream documentStream, bool isUnicode, int? codePage = null)
     {
-        _logger.LogInfo($"[DEBUG] GetTextForRange: fcStart={fcStart}, fcEnd={fcEnd}, isUnicode={isUnicode}, streamLength={documentStream.Length}");
+        _logger.LogInfo($"[DEBUG] GetTextForRange: fcStart={fcStart}, fcEnd={fcEnd}, isUnicode={isUnicode}, streamLength={documentStream.Length}, codePage={codePage}");
         int length = fcEnd - fcStart;
         if (length <= 0)
         {
@@ -298,9 +308,10 @@ public class PieceTable
         }
         else
         {
-            // Use Windows-1252 by default, which is the most common for non-Unicode Word docs
-            text = System.Text.Encoding.GetEncoding(1252).GetString(bytes);
-            _logger.LogInfo("[DEBUG] GetTextForRange: Decoded as Windows-1252");
+            // Use code page if provided, otherwise default to Windows-1252
+            var encoding = codePage.HasValue ? System.Text.Encoding.GetEncoding(codePage.Value) : System.Text.Encoding.GetEncoding(1252);
+            text = encoding.GetString(bytes);
+            _logger.LogInfo($"[DEBUG] GetTextForRange: Decoded as {(codePage.HasValue ? $"code page {codePage.Value}" : "Windows-1252")}");
         }
 
         string processedText = ProcessFieldCodes(text);

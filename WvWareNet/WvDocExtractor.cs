@@ -19,7 +19,7 @@ public class WvDocExtractor
         _logger = logger;
     }
 
-    public string ExtractText(string filePath, string password = null)
+    public string ExtractText(string filePath, string password = null, bool extractHeadersFooters = false)
     {
         if (!File.Exists(filePath))
         {

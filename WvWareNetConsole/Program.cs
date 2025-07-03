@@ -12,7 +12,8 @@ namespace WvWareNetConsole
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
             if (args.Length == 0)
             {
-                Console.WriteLine("Usage: WvWareNetConsole <path_to_doc_file> [output_file] [-p password]");
+                Console.WriteLine("Usage: WvWareNetConsole <path_to_doc_file> [output_file] [-p password] [--extract-headers-footers]");
+                Console.WriteLine("  --extract-headers-footers   Extract headers and footers text (default: NO)");
                 return;
             }
 
@@ -20,6 +21,7 @@ namespace WvWareNetConsole
             string filePath = null;
             string outputPath = null;
             string password = null;
+            bool extractHeadersFooters = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -27,6 +29,10 @@ namespace WvWareNetConsole
                 {
                     password = args[i + 1];
                     i++; // Skip password value
+                }
+                else if (args[i] == "--extract-headers-footers")
+                {
+                    extractHeadersFooters = true;
                 }
                 else if (filePath == null)
                 {
@@ -74,7 +80,7 @@ namespace WvWareNetConsole
                 logger.LogInfo($"Starting text extraction for: {filePath}");
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 
-                extractedText = extractor.ExtractText(filePath, password);
+                extractedText = extractor.ExtractText(filePath, password, extractHeadersFooters);
                 
                 stopwatch.Stop();
                 logger.LogInfo($"Extraction completed in {stopwatch.ElapsedMilliseconds}ms");
