@@ -419,6 +419,7 @@ namespace WvWareNet.Parsers
                         _logger.LogInfo($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
                         clxData = new byte[fib.LcbClx];
                         Array.Copy(tableStream, fib.FcClx, clxData, 0, fib.LcbClx);
+                        _logger.LogInfo($"[DEBUG] CLX data: {BitConverter.ToString(clxData)}");
                     }
                 }
                 else // Word 6/95 - CLX is at the beginning of the Table stream
