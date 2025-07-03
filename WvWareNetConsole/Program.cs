@@ -22,6 +22,8 @@ namespace WvWareNetConsole
             string outputPath = null;
             string password = null;
             bool extractHeadersFooters = false;
+            string logFilePath = null;
+            WvWareNet.Utilities.LogLevel logLevel = WvWareNet.Utilities.LogLevel.Info;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -33,6 +35,24 @@ namespace WvWareNetConsole
                 else if (args[i] == "--extract-headers-footers")
                 {
                     extractHeadersFooters = true;
+                }
+                else if (args[i] == "--verbosity" && i + 1 < args.Length)
+                {
+                    if (Enum.TryParse<WvWareNet.Utilities.LogLevel>(args[i + 1], true, out var parsedLevel))
+                    {
+                        logLevel = parsedLevel;
+                        i++;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Invalid verbosity level: {args[i + 1]}");
+                        return;
+                    }
+                }
+                else if (args[i] == "--log-to-file" && i + 1 < args.Length)
+                {
+                    logFilePath = args[i + 1];
+                    i++;
                 }
                 else if (filePath == null)
                 {
@@ -56,7 +76,15 @@ namespace WvWareNetConsole
                 outputPath = Path.ChangeExtension(filePath, ".txt");
             }
 
-            var logger = new ConsoleLogger();
+            WvWareNet.Utilities.ILogger logger;
+            if (!string.IsNullOrEmpty(logFilePath))
+            {
+                logger = new WvWareNet.Utilities.FileLogger(logFilePath, logLevel);
+            }
+            else
+            {
+                logger = new WvWareNet.Utilities.ConsoleLogger(logLevel);
+            }
             var extractor = new WvDocExtractor(logger);
 
             try
@@ -96,26 +124,34 @@ namespace WvWareNetConsole
                 else
                 {
                     logger.LogError("Extraction returned empty text. Please check the logs for details.");
-                    Console.WriteLine("Extraction completed but returned empty text. Please check the logs for details.");
-                }
+                Console.WriteLine("Extraction completed but returned empty text. Please check the logs for details.");
             }
-            catch (Exception ex)
+        }
+        catch (Exception ex)
+        {
+            // Directly output exception details to console
+            Console.WriteLine($"An error occurred during text extraction: {ex.GetType().FullName}");
+            Console.WriteLine($"Message: {ex.Message}");
+            Console.WriteLine("Stack Trace:");
+            Console.WriteLine(ex.StackTrace);
+            if (ex.InnerException != null)
             {
-                // Directly output exception details to console
-                Console.WriteLine($"An error occurred during text extraction: {ex.GetType().FullName}");
-                Console.WriteLine($"Message: {ex.Message}");
-                Console.WriteLine("Stack Trace:");
-                Console.WriteLine(ex.StackTrace);
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine("Inner Exception:");
-                    Console.WriteLine($"Type: {ex.InnerException.GetType().FullName}");
-                    Console.WriteLine($"Message: {ex.InnerException.Message}");
-                }
+                Console.WriteLine("Inner Exception:");
+                Console.WriteLine($"Type: {ex.InnerException.GetType().FullName}");
+                Console.WriteLine($"Message: {ex.InnerException.Message}");
+            }
 
-                // Also log using logger
-                logger.LogError($"An error occurred during text extraction: {ex.ToString()}", ex);
+            // Also log using logger
+            logger.LogError($"An error occurred during text extraction: {ex.ToString()}", ex);
+        }
+        finally
+        {
+            // Dispose logger if needed
+            if (logger is IDisposable disposableLogger)
+            {
+                disposableLogger.Dispose();
             }
         }
     }
+}
 }

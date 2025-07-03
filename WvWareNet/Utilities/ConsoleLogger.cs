@@ -11,22 +11,26 @@ public class ConsoleLogger : ILogger
 
     public void LogDebug(string message)
     {
-        Console.WriteLine($"[DEBUG] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}");
+        if (_minLogLevel <= LogLevel.Debug)
+            Console.WriteLine($"[DEBUG] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}");
     }
 
     public void LogInfo(string message)
     {
-        Console.WriteLine($"[INFO] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}");
+        if (_minLogLevel <= LogLevel.Info)
+            Console.WriteLine($"[INFO] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}");
     }
 
     public void LogWarning(string message)
     {
-        Console.WriteLine($"[WARN] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}");
+        if (_minLogLevel <= LogLevel.Warning)
+            Console.WriteLine($"[WARN] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}");
     }
 
     public void LogError(string message)
     {
-        Console.WriteLine($"[ERROR] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}");
+        if (_minLogLevel <= LogLevel.Error)
+            Console.WriteLine($"[ERROR] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}");
     }
 
     public void LogError(string message, Exception exception)
@@ -46,12 +50,4 @@ public class ConsoleLogger : ILogger
             }
         }
     }
-}
-
-public enum LogLevel
-{
-    Debug,
-    Info,
-    Warning,
-    Error
 }
