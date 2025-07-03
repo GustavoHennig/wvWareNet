@@ -232,6 +232,7 @@ public class CompoundFileBinaryFormatParser
     public List<uint> GetFatChain(uint startSector)
     {
         var chain = new List<uint>();
+        var visited = new HashSet<uint>();
         uint current = startSector;
         const uint EndOfChain = 0xFFFFFFFE;
         long fileLength = _reader.BaseStream.Length;
@@ -247,6 +248,11 @@ public class CompoundFileBinaryFormatParser
         
         while (current != EndOfChain && current != FreeSector)
         {
+            if (!visited.Add(current))
+            {
+                Console.WriteLine($"[WARN] Detected FAT chain cycle at sector {current}, breaking.");
+                break;
+            }
             if (current >= _fat.Length)
             {
                 throw new InvalidDataException($"Invalid FAT index: {current}");
