@@ -178,28 +178,26 @@ public class PieceTable
                 
                 _logger.LogInfo($"[DEBUG] Piece {j}: fcValue=0x{fcValue:X8}, prm=0x{prm:X8}");
 
-                bool flag31 = (fcValue & 0x80000000) != 0;  // bit 31
-                bool flag30 = (fcValue & 0x40000000) != 0;  // bit 30 (your current)
-                bool flag0 = (fcValue & 0x00000001) != 0;  // bit 0
-
-                bool isCompressed = (fcValue & 0x1) != 0;
-                uint fcccc = fcValue >> 1;
-
-                _logger.LogInfo($"Flags: bit31={flag31}, bit30={flag30}, bit0={flag0}, isCompressed={isCompressed}, fcccc={fcccc}");
-
-
-                bool isUnicode = (fcValue & 0x40000000) == 0; // Inverted logic - bit SET means 8-bit chars
+                // According to MS-DOC spec, the FC value interpretation:
+                // - If bit 30 (0x40000000) is SET: 8-bit characters, fc = (fcValue & ~0x40000000) / 2
+                // - If bit 30 is CLEAR: 16-bit characters, fc = fcValue & ~0x40000000
+                
+                bool isCompressed = (fcValue & 0x40000000) != 0;
+                bool isUnicode = !isCompressed;
                 uint fc;
-                if ((fcValue & 0x40000000) != 0)
+                
+                if (isCompressed)
                 {
-                    // If bit is set, it's 8-bit chars: clear bit and divide by 2
+                    // 8-bit characters: clear the compression bit and divide by 2
                     fc = (fcValue & 0xBFFFFFFF) / 2;
                 }
                 else
                 {
-                    // If bit is clear, it's 16-bit chars: use direct offset
-                    fc = fcValue;
+                    // 16-bit characters: just clear any high bits
+                    fc = fcValue & 0x3FFFFFFF;
                 }
+
+                _logger.LogInfo($"fcValue=0x{fcValue:X8}, isCompressed={isCompressed}, isUnicode={isUnicode}, fc={fc}");
 
                 int cpStart = cpArray[j];
                 int cpEnd = cpArray[j + 1];
@@ -439,17 +437,25 @@ public class PieceTable
             {
                 sb.Append('\n');
             }
-            // Allow a wider range of characters including Cyrillic and special punctuation
+            // Allow a much wider range of characters - be more permissive
             else if (char.IsLetterOrDigit(c) || char.IsPunctuation(c) || char.IsWhiteSpace(c) ||
+                char.IsSymbol(c) ||  
+                // TODO: This seems redundany, review it
                 c == '\r' || c == '\n' || c == '\t' || c == '\v' || c == '~' ||
                 (c >= 'А' && c <= 'я') || // Cyrillic range
-                (c >= 'À' && c <= 'ÿ'))   // Latin-1 Supplement
+                (c >= 'À' && c <= 'ÿ') || // Latin-1 Supplement
+                c == '=' || c == '<' || c == '>' || c == '^' || c == '|' || c == '+' || c == '-') // Explicitly allow missing chars
             {
                 sb.Append(c);
             }
             else if (c == '\0' || c < ' ') // Replace null chars and control chars
             {
                 // Skip these characters
+            }
+            else
+            {
+                // For debugging: log any character that's being filtered out
+                Console.WriteLine($"[DEBUG] CleanText filtering out character: '{c}' (U+{(int)c:X4})");
             }
         }
         return sb.ToString();
