@@ -30,7 +30,7 @@ public class PieceTable
         }
     }
 
-    public void Parse(byte[] clxData, uint fcMin, uint fcMac, ushort nFib)
+    public void Parse(byte[] clxData, FileInformationBlock fib)
     {
         _pieces.Clear();
         if (clxData == null || clxData.Length == 0)
@@ -101,7 +101,7 @@ public class PieceTable
         if (plcPcdOffset == -1)
         {
             _logger.LogWarning("No PlcPcd (piece table) found in CLX data. Falling back to single piece.");
-            SetSinglePiece(fcMin, fcMac, nFib);
+            SetSinglePiece(fib);
             return;
         }
 
@@ -158,7 +158,7 @@ public class PieceTable
             if (!validPieceTable)
             {
                 _logger.LogWarning($"[DEBUG] Piece table data doesn't match expected format, falling back to single piece");
-                SetSinglePiece(fcMin, fcMac, nFib);
+                SetSinglePiece(fib);
                 return;
             }
 
@@ -226,7 +226,7 @@ public class PieceTable
         {
             _logger.LogError("Error parsing piece table data", ex);
             _logger.LogWarning("Falling back to single piece due to parsing error");
-            SetSinglePiece(fcMin, fcMac, nFib);
+            SetSinglePiece(fib);
         }
     }
 
@@ -493,20 +493,20 @@ public class PieceTable
     /// supplied file positions. Used as a fallback when the piece table is
     /// corrupt or not present.
     /// </summary>
-    public void SetSinglePiece(uint fcMin, uint fcMac, ushort nFib)
+    public void SetSinglePiece(FileInformationBlock fib)
     {
         _pieces.Clear();
         // Always use 8-bit encoding for fallback, as in the working version.
         bool isUnicode = false;
         _pieces.Add(new PieceDescriptor
         {
-            FilePosition = fcMin,
+            FilePosition = fib.FcMin,
             IsUnicode = isUnicode,
             HasFormatting = false,
             CpStart = 0,
-            CpEnd = (int)(fcMac - fcMin),
-            FcStart = (int)fcMin,
-            FcEnd = (int)fcMac
+            CpEnd = (int)(fib.FcMac - fib.FcMin),
+            FcStart = (int)fib.FcMin,
+            FcEnd = (int)fib.FcMac
         });
     }
 }

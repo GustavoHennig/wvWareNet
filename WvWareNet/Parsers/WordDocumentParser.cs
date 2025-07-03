@@ -319,7 +319,7 @@ namespace WvWareNet.Parsers
             var entries = _cfbfParser.ParseDirectoryEntries();
 
             // Locate WordDocument stream
-            var wordDocEntry = entries.Find(e => 
+            var wordDocEntry = entries.Find(e =>
                 e.Name.Contains("WordDocument", StringComparison.OrdinalIgnoreCase));
 
             if (wordDocEntry == null)
@@ -335,7 +335,7 @@ namespace WvWareNet.Parsers
 
             // Read stream data
             var wordDocStream = _cfbfParser.ReadStream(wordDocEntry);
-            
+
             // Log the first 32 bytes of the WordDocument stream for debugging
             _logger.LogInfo($"[DEBUG] WordDocument stream length: {wordDocStream.Length}");
             if (wordDocStream.Length >= 32)
@@ -362,8 +362,8 @@ namespace WvWareNet.Parsers
             }
 
             // For Word95 files, try to proceed without Table stream if not found
-            var tableEntry = entries.Find(e => 
-                e.Name.Contains("1Table", StringComparison.OrdinalIgnoreCase)) 
+            var tableEntry = entries.Find(e =>
+                e.Name.Contains("1Table", StringComparison.OrdinalIgnoreCase))
                 ?? entries.Find(e => e.Name.Contains("0Table", StringComparison.OrdinalIgnoreCase))
                 ?? entries.Find(e => e.Name.Contains("Table", StringComparison.OrdinalIgnoreCase));
 
@@ -389,7 +389,7 @@ namespace WvWareNet.Parsers
 
             _logger.LogInfo($"[DEBUG] Found WordDocument stream: {wordDocEntry.Name}");
             byte[]? tableStream = null;
-            
+
             if (tableEntry != null)
             {
                 _logger.LogInfo($"[DEBUG] Found Table stream: {tableEntry.Name}");
@@ -426,7 +426,7 @@ namespace WvWareNet.Parsers
                 {
                     // Heuristic: Assume CLX is at the beginning of the table stream for older formats
                     // and has a reasonable size (e.g., up to 512 bytes, or the whole stream if smaller)
-                    int assumedClxLength = Math.Min(tableStream.Length, 512); 
+                    int assumedClxLength = Math.Min(tableStream.Length, 512);
                     clxData = new byte[assumedClxLength];
                     Array.Copy(tableStream, 0, clxData, 0, assumedClxLength);
                     _logger.LogInfo($"[DEBUG] Assuming CLX at start of Table stream for NFib={fib.NFib}, length={assumedClxLength}");
@@ -436,8 +436,8 @@ namespace WvWareNet.Parsers
             if (clxData != null && clxData.Length > 0)
             {
                 _logger.LogInfo($"[DEBUG] Parsing piece table with CLX data (size: {clxData.Length}), FcMin: {fib.FcMin}, FcMac: {fib.FcMac}, NFib: {fib.NFib}");
-                pieceTable.Parse(clxData, fib.FcMin, fib.FcMac, fib.NFib);
-                
+                pieceTable.Parse(clxData, fib);
+
                 _logger.LogInfo($"[DEBUG] Piece table parsed. Number of pieces: {pieceTable.Pieces.Count}");
                 foreach (var piece in pieceTable.Pieces)
                 {
@@ -447,13 +447,13 @@ namespace WvWareNet.Parsers
                 if (pieceTable.Pieces.Count == 1 && pieceTable.Pieces[0].FcStart >= wordDocStream.Length)
                 {
                     _logger.LogWarning("Invalid piece table detected, falling back to FcMin/FcMac range.");
-                    pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac, fib.NFib);
+                    pieceTable.SetSinglePiece(fib);
                 }
             }
             else
             {
                 _logger.LogWarning("No CLX data found or invalid, treating document as single piece");
-                pieceTable.SetSinglePiece(fib.FcMin, fib.FcMac, fib.NFib);
+                pieceTable.SetSinglePiece(fib);
                 _logger.LogInfo($"[DEBUG] Fallback single piece created. IsUnicode: {pieceTable.Pieces[0].IsUnicode}");
             }
 
@@ -505,23 +505,23 @@ namespace WvWareNet.Parsers
             // Parse stylesheet
             WvWareNet.Core.Stylesheet stylesheet = new WvWareNet.Core.Stylesheet();
             _logger.LogInfo($"[DEBUG] Stylesheet info: FcStshf={fib.FcStshf}, LcbStshf={fib.LcbStshf}, tableStream.Length={tableStream?.Length ?? 0}");
-            
+
             if (tableStream != null && fib.FcStshf > 0 && fib.LcbStshf > 0 && fib.FcStshf + fib.LcbStshf <= tableStream.Length)
             {
                 byte[] stshData = new byte[fib.LcbStshf];
                 Array.Copy(tableStream, fib.FcStshf, stshData, 0, fib.LcbStshf);
                 _logger.LogInfo($"[DEBUG] Extracted stylesheet data of {stshData.Length} bytes from offset {fib.FcStshf}");
-                
+
                 // Log first 32 bytes of stylesheet data
                 if (stshData.Length >= 32)
                 {
                     string hexStr = BitConverter.ToString(stshData, 0, 32);
                     _logger.LogInfo($"[DEBUG] First 32 bytes of stylesheet: {hexStr}");
                 }
-                
+
                 stylesheet = WvWareNet.Core.Stylesheet.Parse(stshData);
                 _logger.LogInfo($"[DEBUG] Parsed stylesheet with {stylesheet.Styles.Count} styles");
-                
+
                 // Log the first few styles for debugging
                 for (int i = 0; i < Math.Min(10, stylesheet.Styles.Count); i++)
                 {
@@ -532,7 +532,7 @@ namespace WvWareNet.Parsers
             else
             {
                 _logger.LogWarning($"No stylesheet found via FIB - FcStshf={fib.FcStshf}, LcbStshf={fib.LcbStshf}");
-                
+
                 // Create basic default stylesheet with standard built-in styles
                 stylesheet = new WvWareNet.Core.Stylesheet();
                 stylesheet.Styles.Add(new WvWareNet.Core.Style { Index = 0, Name = "Normal" });
@@ -737,7 +737,7 @@ namespace WvWareNet.Parsers
             }
 
             // --- Text Box Extraction ---
-            if (tableStream != null && fib.FcPlcftxbxTxt > 0 && fib.LcbPlcftxbxTxt > 0 && 
+            if (tableStream != null && fib.FcPlcftxbxTxt > 0 && fib.LcbPlcftxbxTxt > 0 &&
                 fib.FcPlcftxbxTxt + fib.LcbPlcftxbxTxt <= tableStream.Length)
             {
                 byte[] plcfTxtBx = new byte[fib.LcbPlcftxbxTxt];
@@ -837,19 +837,19 @@ namespace WvWareNet.Parsers
             for (int i = 0; i < _documentModel.Sections.Count; i++)
             {
                 var section = _documentModel.Sections[i];
-                _logger.LogInfo($"[STRUCTURE] Section {i+1}: {section.Paragraphs.Count} paragraph(s)");
+                _logger.LogInfo($"[STRUCTURE] Section {i + 1}: {section.Paragraphs.Count} paragraph(s)");
                 for (int j = 0; j < section.Paragraphs.Count; j++)
                 {
                     var paragraph = section.Paragraphs[j];
-                    _logger.LogInfo($"[STRUCTURE] Paragraph {j+1}: {paragraph.Runs.Count} run(s)");
+                    _logger.LogInfo($"[STRUCTURE] Paragraph {j + 1}: {paragraph.Runs.Count} run(s)");
                     for (int k = 0; k < paragraph.Runs.Count; k++)
                     {
                         var run = paragraph.Runs[k];
-                        _logger.LogInfo($"[STRUCTURE] Run {k+1}: Length={run.Text?.Length ?? 0}, TextPreview='{(run.Text != null ? run.Text.Substring(0, Math.Min(20, run.Text.Length)) : "null")}'");
+                        _logger.LogInfo($"[STRUCTURE] Run {k + 1}: Length={run.Text?.Length ?? 0}, TextPreview='{(run.Text != null ? run.Text.Substring(0, Math.Min(20, run.Text.Length)) : "null")}'");
                     }
                 }
             }
-            
+
             _logger.LogInfo("[PARSING] Document parsing completed");
         }
 
