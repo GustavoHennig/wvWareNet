@@ -361,11 +361,14 @@ namespace WvWareNet.Parsers
                 fib = WvWareNet.Core.FileInformationBlock.Parse(wordDocStream);
             }
 
-            // For Word95 files, try to proceed without Table stream if not found
-            var tableEntry = entries.Find(e =>
-                e.Name.Contains("1Table", StringComparison.OrdinalIgnoreCase))
-                ?? entries.Find(e => e.Name.Contains("0Table", StringComparison.OrdinalIgnoreCase))
-                ?? entries.Find(e => e.Name.Contains("Table", StringComparison.OrdinalIgnoreCase));
+            var streamName = fib.FWhichTblStm
+                ? "1Table"
+                : "0Table";
+
+            var tableEntry = entries
+                .FirstOrDefault(e =>
+                    e.Name.Equals(streamName, StringComparison.OrdinalIgnoreCase));
+
 
             // Word95 files: 100=Word6, 101=Word95, 104=Word97 but some Word95 files use 104
             bool isWord95 = fib.NFib == 100 || fib.NFib == 101 || fib.NFib == 104;
@@ -374,6 +377,7 @@ namespace WvWareNet.Parsers
             {
                 if (isWord95)
                 {
+                    // For Word95 files, try to proceed without Table stream if not found
                     _logger.LogWarning($"Table stream not found in Word95/Word6 document (NFib={fib.NFib}), attempting to parse with reduced functionality");
                 }
                 else if (fib.NFib == 53200) // Special case for Word95 test file
@@ -727,10 +731,10 @@ namespace WvWareNet.Parsers
             }
 
             // Parse PLCF for footnotes if available
-            if (tableStream != null && fib.FcPlcfftn > 0 && fib.LcbPlcfftn > 0 && fib.FcPlcfftn + fib.LcbPlcfftn <= tableStream.Length)
+            if (tableStream != null && fib.FcPlcffldFtn > 0 && fib.LcbPlcffldFtn > 0 && fib.FcPlcffldFtn + fib.LcbPlcffldFtn <= tableStream.Length)
             {
-                byte[] plcfftn = new byte[fib.LcbPlcfftn];
-                Array.Copy(tableStream, fib.FcPlcfftn, plcfftn, 0, fib.LcbPlcfftn);
+                byte[] plcfftn = new byte[fib.LcbPlcffldFtn];
+                Array.Copy(tableStream, fib.FcPlcffldFtn, plcfftn, 0, fib.LcbPlcffldFtn);
 
                 int entryCount = (plcfftn.Length - 4) / 8; // 4 bytes CP, 4 bytes FC per entry
                 using var plcfStream = new System.IO.MemoryStream(plcfftn);

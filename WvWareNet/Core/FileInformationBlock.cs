@@ -177,8 +177,8 @@ public class FileInformationBlock
     // Offsets for header/footer/footnote PLCFs (Word 97+)
     public int FcPlcfhdd { get; set; }
     public uint LcbPlcfhdd { get; set; }
-    public int FcPlcfftn { get; set; }
-    public uint LcbPlcfftn { get; set; }
+    public int FcPlcffldFtn { get; set; }
+    public uint LcbPlcffldFtn { get; set; }
 
     // Text Box properties
     public int FcPlcftxbxTxt { get; set; }
@@ -288,8 +288,8 @@ public class FileInformationBlock
             fib.LcbPlcfhdd = reader.ReadUInt32();
 
             ms.Position = offsetPlcfftn;
-            fib.FcPlcfftn = reader.ReadInt32();
-            fib.LcbPlcfftn = reader.ReadUInt32();
+            fib.FcPlcffldFtn = reader.ReadInt32();
+            fib.LcbPlcffldFtn = reader.ReadUInt32();
 
             // Read stylesheet information
             ms.Position = offsetStshf;
