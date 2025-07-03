@@ -406,56 +406,7 @@ namespace WvWareNet.Parsers
             else
                 _logger.LogInfo($"Detected Word version: {fib.FibVersion}");
 
-            var pieceTable = new WvWareNet.Core.PieceTable(_logger);
-
-            byte[]? clxData = null;
-            if (tableStream != null)
-            {
-                // Word 97 and later use FcClx and LcbClx from FIB
-                if (fib.NFib >= 0x0076) // Word 97 (0x0076) and later
-                {
-                    if (fib.LcbClx > 0 && fib.FcClx >= 0 && (fib.FcClx + fib.LcbClx) <= tableStream.Length)
-                    {
-                        _logger.LogInfo($"[DEBUG] FIB: FcClx={fib.FcClx}, LcbClx={fib.LcbClx}, tableStream.Length={tableStream.Length}");
-                        clxData = new byte[fib.LcbClx];
-                        Array.Copy(tableStream, fib.FcClx, clxData, 0, fib.LcbClx);
-                        _logger.LogInfo($"[DEBUG] CLX data: {BitConverter.ToString(clxData)}");
-                    }
-                }
-                else // Word 6/95 - CLX is at the beginning of the Table stream
-                {
-                    // Heuristic: Assume CLX is at the beginning of the table stream for older formats
-                    // and has a reasonable size (e.g., up to 512 bytes, or the whole stream if smaller)
-                    int assumedClxLength = Math.Min(tableStream.Length, 512);
-                    clxData = new byte[assumedClxLength];
-                    Array.Copy(tableStream, 0, clxData, 0, assumedClxLength);
-                    _logger.LogInfo($"[DEBUG] Assuming CLX at start of Table stream for NFib={fib.NFib}, length={assumedClxLength}");
-                }
-            }
-
-            if (clxData != null && clxData.Length > 0)
-            {
-                _logger.LogInfo($"[DEBUG] Parsing piece table with CLX data (size: {clxData.Length}), FcMin: {fib.FcMin}, FcMac: {fib.FcMac}, NFib: {fib.NFib}");
-                pieceTable.Parse(clxData, fib);
-
-                _logger.LogInfo($"[DEBUG] Piece table parsed. Number of pieces: {pieceTable.Pieces.Count}");
-                foreach (var piece in pieceTable.Pieces)
-                {
-                    _logger.LogInfo($"[DEBUG]   - Piece: CpStart={piece.CpStart}, CpEnd={piece.CpEnd}, FcStart={piece.FcStart}, IsUnicode={piece.IsUnicode}");
-                }
-
-                if (pieceTable.Pieces.Count == 1 && pieceTable.Pieces[0].FcStart >= wordDocStream.Length)
-                {
-                    _logger.LogWarning("Invalid piece table detected, falling back to FcMin/FcMac range.");
-                    pieceTable.SetSinglePiece(fib);
-                }
-            }
-            else
-            {
-                _logger.LogWarning("No CLX data found or invalid, treating document as single piece");
-                pieceTable.SetSinglePiece(fib);
-                _logger.LogInfo($"[DEBUG] Fallback single piece created. IsUnicode: {pieceTable.Pieces[0].IsUnicode}");
-            }
+            var pieceTable = WvWareNet.Core.PieceTable.CreateFromStreams(_logger, fib, tableStream, wordDocStream);
 
             // Extract CHPX (character formatting) data from Table stream using PLCFCHPX
             // PLCFCHPX location is in FIB: FcPlcfbteChpx, LcbPlcfbteChpx
