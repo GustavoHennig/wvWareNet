@@ -24,10 +24,10 @@ public class FileInformationBlock
             };
         }
     }
-    
+
     // Language ID
     public ushort Lid { get; set; }
-    
+
     // Document properties
     public short PnNext { get; set; }
     public bool FDot { get; set; }
@@ -45,7 +45,7 @@ public class FileInformationBlock
     public bool FCrypto { get; set; }
     public ushort NFibBack { get; set; }
     public uint LKey { get; set; }
-    
+
     // Environment information
     public byte Envr { get; set; }
     public bool FMac { get; set; }
@@ -54,22 +54,22 @@ public class FileInformationBlock
     public bool FFutureSavedUndo { get; set; }
     public bool FWord97Saved { get; set; }
     public byte FSpare0 { get; set; }
-    
+
     // Character set handling
     public ushort Chse { get; set; }
     public ushort ChsTables { get; set; }
-    
+
     // File position markers
     public uint FcMin { get; set; }
     public uint FcMac { get; set; }
     public ushort Csw { get; set; }
-    
+
     // Magic numbers
     public ushort WMagicCreated { get; set; }
     public ushort WMagicRevised { get; set; }
     public ushort WMagicCreatedPrivate { get; set; }
     public ushort WMagicRevisedPrivate { get; set; }
-    
+
     // Word 6 specific properties
     public short PnFbpChpFirst_W6 { get; set; }
     public short PnChpFirst_W6 { get; set; }
@@ -80,16 +80,16 @@ public class FileInformationBlock
     public short PnFbpLvcFirst_W6 { get; set; }
     public short PnLvcFirst_W6 { get; set; }
     public short CpnBteLvc_W6 { get; set; }
-    
+
     // Far East language ID
     public short LidFE { get; set; }
-    
+
     // Document statistics
     public ushort Clw { get; set; }
     public int CbMac { get; set; }
     public uint LProductCreated { get; set; }
     public uint LProductRevised { get; set; }
-    
+
     // Character count properties
     public uint CcpText { get; set; }
     public int CcpFtn { get; set; }
@@ -99,7 +99,7 @@ public class FileInformationBlock
     public int CcpEdn { get; set; }
     public int CcpTxbx { get; set; }
     public int CcpHdrTxbx { get; set; }
-    
+
     // Formatting properties
     public int PnFbpChpFirst { get; set; }
     public int PnChpFirst { get; set; }
@@ -110,14 +110,14 @@ public class FileInformationBlock
     public int PnFbpLvcFirst { get; set; }
     public int PnLvcFirst { get; set; }
     public int CpnBteLvc { get; set; }
-    
+
     // Island properties
     public int FcIslandFirst { get; set; }
     public int FcIslandLim { get; set; }
-    
+
     // Count of FCLCB structures
     public ushort Cfclcb { get; set; }
-    
+
     // File position and length properties
     // (Only including key properties for text extraction)
     public int FcStshf { get; set; }
@@ -128,10 +128,10 @@ public class FileInformationBlock
     public uint LcbPlcfbtePapx { get; set; }
     public int FcClx { get; set; }
     public uint LcbClx { get; set; }
-    
+
     // Additional properties would go here
     // (Omitted for brevity in initial implementation)
-    
+
     public FileInformationBlock()
     {
         // Initialize all properties to default values
@@ -184,144 +184,186 @@ public class FileInformationBlock
     public int FcPlcftxbxTxt { get; set; }
     public uint LcbPlcftxbxTxt { get; set; }
 
-        public static FileInformationBlock Parse(byte[] wordDocumentStream)
+    public static FileInformationBlock Parse(byte[] wordDocumentStream)
+    {
+        var fib = new FileInformationBlock();
+        if (wordDocumentStream.Length < 512) // A minimal FIB requires at least the header size
         {
-            var fib = new FileInformationBlock();
-            if (wordDocumentStream.Length < 512) // A minimal FIB requires at least the header size
-            {
-                return fib; // Return a default FIB if stream is too small
-            }
+            return fib; // Return a default FIB if stream is too small
+        }
 
-            using var ms = new System.IO.MemoryStream(wordDocumentStream);
-            using var reader = new System.IO.BinaryReader(ms);
+        using var ms = new System.IO.MemoryStream(wordDocumentStream);
+        using var reader = new System.IO.BinaryReader(ms);
 
-            // Read basic FIB fields from the beginning
-            fib.WIdent = reader.ReadUInt16();
-            fib.NFib = reader.ReadUInt16();
-            fib.NProduct = reader.ReadUInt16();
-            fib.Lid = reader.ReadUInt16();
-            fib.PnNext = reader.ReadInt16();
+        // Read basic FIB fields from the beginning
+        fib.WIdent = reader.ReadUInt16();
+        fib.NFib = reader.ReadUInt16();
+        fib.NProduct = reader.ReadUInt16();
+        fib.Lid = reader.ReadUInt16();
+        fib.PnNext = reader.ReadInt16();
 
-            // Parse flag bits
-            ushort flags = reader.ReadUInt16();
-            fib.FDot = (flags & 0x0001) != 0;
-            fib.FGlsy = (flags & 0x0002) != 0;
-            fib.FComplex = (flags & 0x0004) != 0;
-            fib.FHasPic = (flags & 0x0008) != 0;
-            fib.CQuickSaves = (byte)((flags >> 4) & 0x000F);
-            fib.FEncrypted = (flags & 0x0100) != 0;
-            fib.FWhichTblStm = (flags & 0x0200) != 0;
-            fib.FReadOnlyRecommended = (flags & 0x0400) != 0;
-            fib.FWriteReservation = (flags & 0x0800) != 0;
-            fib.FExtChar = (flags & 0x1000) != 0;
-            fib.FLoadOverride = (flags & 0x2000) != 0;
-            fib.FFarEast = (flags & 0x4000) != 0;
-            fib.FCrypto = (flags & 0x8000) != 0;
+        // Parse flag bits
+        ushort flags = reader.ReadUInt16();
+        fib.FDot = (flags & 0x0001) != 0;
+        fib.FGlsy = (flags & 0x0002) != 0;
+        fib.FComplex = (flags & 0x0004) != 0;
+        fib.FHasPic = (flags & 0x0008) != 0;
+        fib.CQuickSaves = (byte)((flags >> 4) & 0x000F);
+        fib.FEncrypted = (flags & 0x0100) != 0;
+        fib.FWhichTblStm = (flags & 0x0200) != 0;
+        fib.FReadOnlyRecommended = (flags & 0x0400) != 0;
+        fib.FWriteReservation = (flags & 0x0800) != 0;
+        fib.FExtChar = (flags & 0x1000) != 0;
+        fib.FLoadOverride = (flags & 0x2000) != 0;
+        fib.FFarEast = (flags & 0x4000) != 0;
+        fib.FCrypto = (flags & 0x8000) != 0;
 
-            fib.NFibBack = reader.ReadUInt16();
-            fib.LKey = reader.ReadUInt32();
+        fib.NFibBack = reader.ReadUInt16();
+        fib.LKey = reader.ReadUInt32();
 
-            fib.Envr = reader.ReadByte();
-            byte envrFlags = reader.ReadByte();
-            fib.FMac = (envrFlags & 0x01) != 0;
-            fib.FEmptySpecial = (envrFlags & 0x02) != 0;
-            fib.FLoadOverridePage = (envrFlags & 0x04) != 0;
-            fib.FFutureSavedUndo = (envrFlags & 0x08) != 0;
-            fib.FWord97Saved = (envrFlags & 0x10) != 0;
-            fib.FSpare0 = (byte)(envrFlags >> 5);
+        fib.Envr = reader.ReadByte();
+        byte envrFlags = reader.ReadByte();
+        fib.FMac = (envrFlags & 0x01) != 0;
+        fib.FEmptySpecial = (envrFlags & 0x02) != 0;
+        fib.FLoadOverridePage = (envrFlags & 0x04) != 0;
+        fib.FFutureSavedUndo = (envrFlags & 0x08) != 0;
+        fib.FWord97Saved = (envrFlags & 0x10) != 0;
+        fib.FSpare0 = (byte)(envrFlags >> 5);
 
-            fib.Chse = reader.ReadUInt16();
-            fib.ChsTables = reader.ReadUInt16();
+        fib.Chse = reader.ReadUInt16();
+        fib.ChsTables = reader.ReadUInt16();
 
-            // Read FcMin and FcMac at standard offset
-            ms.Position = 0x18; 
-            fib.FcMin = reader.ReadUInt32();
-            fib.FcMac = reader.ReadUInt32();
+        // Read Cfclcb to determine the size of the FC/LCB array
+        ms.Position = 0x005C;
+        if (ms.Length > 0x005C + 2)
+            fib.Cfclcb = reader.ReadUInt16();
 
-            // Determine version-specific offsets
-            int offsetPlcfbteChpx = 0x00FA; // Default for Word 6/95
-            int offsetPlcfbtePapx = 0x0102;
-            int offsetClx = 0x00A4;
-            int offsetPlcfhdd = 0x00F2;
-            int offsetPlcfftn = 0x012A;
-            int offsetPlcftxbxTxt = 0x01F6;
-            int offsetStshf = 0x00A0; // Stylesheet offset for Word 6/95
+        // Read FcMin and FcMac at standard offset
+        ms.Position = 0x18;
+        fib.FcMin = reader.ReadUInt32();
+        fib.FcMac = reader.ReadUInt32();
 
-            if (fib.NFib >= 104) // Word 97 and later
-            {
-                offsetPlcfbteChpx = 0x014E;
-                offsetPlcfbtePapx = 0x0156;
-                offsetClx = 0x01A2;
-                offsetPlcfhdd = 0x0142;
-                offsetPlcfftn = 0x015E;
-                offsetPlcftxbxTxt = 0x01C6;
-                offsetStshf = 0x00A2; // Corrected stylesheet offset for Word 97+
-            }
+        // Determine version-specific offsets
+        int offsetPlcfbteChpx = 0x00FA; // Default for Word 6/95
+        int offsetPlcfbtePapx = 0x0102;
+        int offsetClx = 0x00A4;
+        int offsetPlcfhdd = 0x00F2;
+        int offsetPlcfftn = 0x012A;
+        int offsetPlcftxbxTxt = 0x01F6;
+        int offsetStshf = 0x00A0; // Stylesheet offset for Word 6/95
 
-            // Read version-specific properties
-            ms.Position = offsetPlcftxbxTxt;
-            fib.FcPlcftxbxTxt = reader.ReadInt32();
-            ms.Position = offsetPlcftxbxTxt + 4;
-            fib.LcbPlcftxbxTxt = reader.ReadUInt32();
+        if (fib.NFib >= 104) // Word 97 and later
+        {
+            offsetPlcfbteChpx = 0x014E;
+            offsetPlcfbtePapx = 0x0156;
+            offsetClx = 0x01A2;
+            offsetPlcfhdd = 0x0142;
+            offsetPlcfftn = 0x015E;
+            offsetPlcftxbxTxt = 0x01C6;
+            offsetStshf = 0x00A2; // Corrected stylesheet offset for Word 97+
+        }
 
-            ms.Position = offsetPlcfbteChpx;
-            fib.FcPlcfbteChpx = reader.ReadInt32();
-            fib.LcbPlcfbteChpx = reader.ReadUInt32();
+        // Read version-specific properties
+        ms.Position = offsetPlcftxbxTxt;
+        fib.FcPlcftxbxTxt = reader.ReadInt32();
+        ms.Position = offsetPlcftxbxTxt + 4;
+        fib.LcbPlcftxbxTxt = reader.ReadUInt32();
 
-            ms.Position = offsetPlcfbtePapx;
-            fib.FcPlcfbtePapx = reader.ReadInt32();
-            fib.LcbPlcfbtePapx = reader.ReadUInt32();
+        ms.Position = offsetPlcfbteChpx;
+        fib.FcPlcfbteChpx = reader.ReadInt32();
+        fib.LcbPlcfbteChpx = reader.ReadUInt32();
 
-            // Read CLX information
+        ms.Position = offsetPlcfbtePapx;
+        fib.FcPlcfbtePapx = reader.ReadInt32();
+        fib.LcbPlcfbtePapx = reader.ReadUInt32();
+
+        // Read CLX information
             ms.Position = offsetClx;
             fib.FcClx = reader.ReadInt32();
             fib.LcbClx = reader.ReadUInt32();
-            
-            // Debugging: Output CLX values for fast saved documents
-            if (fib.FDot || fib.CQuickSaves > 1)
-            {
-                System.Console.WriteLine($"[DEBUG] Fast Save detected - CLX Offset: {fib.FcClx}, Length: {fib.LcbClx}");
-            }
 
-            ms.Position = offsetPlcfhdd;
-            fib.FcPlcfhdd = reader.ReadInt32();
-            fib.LcbPlcfhdd = reader.ReadUInt32();
-
-            ms.Position = offsetPlcfftn;
-            fib.FcPlcffldFtn = reader.ReadInt32();
-            fib.LcbPlcffldFtn = reader.ReadUInt32();
-
-            // Read stylesheet information
-            ms.Position = offsetStshf;
-            fib.FcStshf = reader.ReadInt32();
-            fib.LcbStshf = reader.ReadUInt32();
-
-            // Read character counts (Word 97+)
-            if (fib.NFib >= 104) // Word 97 and later
-            {
-                ms.Position = 0x00A4; // Character count section
-                fib.CcpText = reader.ReadUInt32();
-                fib.CcpFtn = reader.ReadInt32();
-                fib.CcpHdr = reader.ReadInt32();
-                fib.CcpMcr = reader.ReadInt32();
-                fib.CcpAtn = reader.ReadInt32();
-                fib.CcpEdn = reader.ReadInt32();
-                fib.CcpTxbx = reader.ReadInt32();
-                fib.CcpHdrTxbx = reader.ReadInt32();
-            }
-            else
-            {
-                // For older versions, try to determine text length from FcMin/FcMac
-                fib.CcpText = fib.FcMac - fib.FcMin;
-                fib.CcpFtn = 0;
-                fib.CcpHdr = 0;
-                fib.CcpMcr = 0;
-                fib.CcpAtn = 0;
-                fib.CcpEdn = 0;
-                fib.CcpTxbx = 0;
-                fib.CcpHdrTxbx = 0;
-            }
-
-            return fib;
+        // Debugging: Output CLX values for fast saved documents
+        if (fib.FDot || fib.CQuickSaves > 1)
+        {
+            System.Console.WriteLine($"[DEBUG] Fast Save detected - CLX Offset: {fib.FcClx}, Length: {fib.LcbClx}");
         }
+
+        ms.Position = offsetPlcfhdd;
+        fib.FcPlcfhdd = reader.ReadInt32();
+        fib.LcbPlcfhdd = reader.ReadUInt32();
+
+        ms.Position = offsetPlcfftn;
+        fib.FcPlcffldFtn = reader.ReadInt32();
+        fib.LcbPlcffldFtn = reader.ReadUInt32();
+
+        // Read stylesheet information
+        ms.Position = offsetStshf;
+        fib.FcStshf = reader.ReadInt32();
+        fib.LcbStshf = reader.ReadUInt32();
+
+        // Read character counts (Word 97+)
+        if (fib.NFib >= 104) // Word 97 and later
+        {
+            ms.Position = 0x00A4; // Character count section
+            fib.CcpText = reader.ReadUInt32();
+            fib.CcpFtn = reader.ReadInt32();
+            fib.CcpHdr = reader.ReadInt32();
+            fib.CcpMcr = reader.ReadInt32();
+            fib.CcpAtn = reader.ReadInt32();
+            fib.CcpEdn = reader.ReadInt32();
+            fib.CcpTxbx = reader.ReadInt32();
+            fib.CcpHdrTxbx = reader.ReadInt32();
+        }
+        else
+        {
+            // For older versions, try to determine text length from FcMin/FcMac
+            fib.CcpText = fib.FcMac - fib.FcMin;
+            fib.CcpFtn = 0;
+            fib.CcpHdr = 0;
+            fib.CcpMcr = 0;
+            fib.CcpAtn = 0;
+            fib.CcpEdn = 0;
+            fib.CcpTxbx = 0;
+            fib.CcpHdrTxbx = 0;
+        }
+
+
+        //TO ANYONE: DO NOT DELETE THE SNIPPET BELOW
+        // Alternative approach: Try to find CLX by scanning the fibRgFcLcb array
+        // The CLX entry should be one of the FC/LCB pairs
+        if (fib.Cfclcb > 0)
+        {
+            System.Console.WriteLine($"[DEBUG] Scanning fibRgFcLcb array for CLX...");
+
+            // Start of fibRgFcLcb array varies by version
+            int fibRgFcLcbStart = 0x0020; // Base estimate
+            if (fib.NFib >= 104) // Word 97+
+            {
+                fibRgFcLcbStart = 0x0044; // Adjusted
+            }
+
+            // Scan through FC/LCB pairs to find likely CLX
+            for (int i = 0; i < Math.Min(fib.Cfclcb, (ushort)20); i++) // Limit to prevent overrun
+            {
+                int pairOffset = fibRgFcLcbStart + (i * 8);
+                if (ms.Length > pairOffset + 8)
+                {
+                    ms.Position = pairOffset;
+                    int fc = reader.ReadInt32();
+                    uint lcb = reader.ReadUInt32();
+
+                    System.Console.WriteLine($"[DEBUG] FC/LCB pair {i}: FC=0x{fc:X8} ({fc}), LCB=0x{lcb:X8} ({lcb})");
+
+                    // CLX typically has a reasonable size and valid FC
+                    if (lcb > 0 && lcb < 0x10000000 && fc > 0 && fc < 0x10000000)
+                    {
+                        System.Console.WriteLine($"[DEBUG] ^ This could be CLX (pair {i})");
+                    }
+                }
+            }
+        }
+
+
+        return fib;
+    }
 }
