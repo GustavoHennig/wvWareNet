@@ -1,4 +1,4 @@
-namespace WvWareNet.Core;
+﻿namespace WvWareNet.Core;
 
 public class CharacterProperties
 {
@@ -46,5 +46,37 @@ public class CharacterProperties
     public object Clone()
     {
         return this.MemberwiseClone();
+    }
+    /// <summary>
+    /// Build a CharacterProperties object from a CHPX SPRM byte array.
+    /// Simple grpprl parsing: for each SPRM opcode at index i, use byte[i+2] as operand.
+    /// </summary>
+    public static CharacterProperties FromChpx(byte[]? chpx)
+    {
+        var props = new CharacterProperties();
+        if (chpx == null || chpx.Length < 3)
+            return props;
+
+        // Based on CHPX parsing in WordDocumentParser (parse opcode and operand) fileciteturn3file17
+        for (int i = 0; i < chpx.Length - 2; i++)
+        {
+            byte sprm = chpx[i];
+            byte val = chpx[i + 2];
+            switch (sprm)
+            {
+                case 0x08: props.IsBold = (val & 1) != 0; break;
+                case 0x09: props.IsItalic = (val & 1) != 0; break;
+                case 0x0A: props.IsStrikeThrough = (val & 1) != 0; break;
+                case 0x0D: props.IsSmallCaps = (val & 1) != 0; break;
+                case 0x0E: props.IsAllCaps = (val & 1) != 0; break;
+                case 0x0F: props.IsHidden = (val & 1) != 0; break;
+                case 0x18: props.IsUnderlined = (val & 1) != 0; break;
+                case 0x2A: props.FontSize = val; break;
+                    // add other SPRM codes as required
+            }
+            // Skip over the operand byte as well
+            i += 2;
+        }
+        return props;
     }
 }
