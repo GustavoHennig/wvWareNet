@@ -4,7 +4,7 @@
 
 This document outlines the tasks required to implement the remaining text-centric parsing and formatting features described in the wvWare `decode_complex.c` file, using it as a reference to understand the DOC format and guide the C# implementation. No code is copied or directly ported; all implementation is original to this repository.
 
-The primary goal is to accurately extract not just the text, but also the structural and formatting information that can be represented in a plain text format, such as lists, indentation, and basic text styling (bold, italic).
+The primary goal is to accurately extract the complete document structure, including all formatting, relationships between elements, and detailed styles such as lists, indentation, and text styling (bold, italic), preserving the full richness of the original document.
 
 This plan intentionally **skips** features related to visual or graphical elements, such as images, shapes, page borders, and complex table shading.
 
@@ -105,4 +105,4 @@ This phase builds on the SPRM foundation to correctly interpret and format numbe
 
 -   [ ] **Task 4.3: Final Verification**
     -   [ ] Test with a variety of documents containing complex lists, nested lists, and style overrides.
-    -   [ ] Ensure the text output correctly represents the list structure and indentation.
+-   [ ] Ensure the text output correctly represents the document structure, formatting, and relationships, including lists and indentation.

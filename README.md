@@ -14,7 +14,7 @@ See `PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current dev
 - 100% managed codebase
 - Modern, maintainable, and idiomatic C#
 - Inspired by the core functionality of `wvWare`
-- Focus on text extraction feature only
+- Focus on extracting text, complete document structure, formatting, and relationships between elements
 
 ## Scope
 
@@ -22,7 +22,7 @@ See `PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current dev
   - Word 6.0 (v6)
   - Word 95 (v7)
   - Word 97 (v8)
-- **Output**: Plain extracted text
+- **Output**: Complete text, document structure, formatting, and relationships between elements
 - No support for layout, images, annotations, or embedded objects
 
 

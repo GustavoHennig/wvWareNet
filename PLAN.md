@@ -22,7 +22,7 @@
 - Parse Compound File Binary Format (CFBF)
 - Navigate Word document structure (FIB, piece tables, text runs)
 - Decode text (Unicode, encodings, conversions)
-- Output plain text
+- Output complete document structure with formatting
 
 ## Architecture
 
@@ -81,7 +81,7 @@
 - [x] Implement text decoding logic
 - [x] Handle character encoding conversions
 - [x] Process piece tables to extract text
-- [x] Build plain text output mechanism
+- [x] Build document structure and formatting parser
 - [x] Added FIB version detection and encryption check
 - [ ] Parse and apply character formatting (CHPX/PLCFCHPX) to runs
 - [ ] Convert CHPX to CharacterProperties for each run

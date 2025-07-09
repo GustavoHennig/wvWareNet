@@ -68,7 +68,7 @@ vwWare-toDotNet.sln
 - [x] Implement text decoding logic
 - [x] Handle character encoding conversions
 - [x] Process piece tables to extract text
-- [x] Build plain text output mechanism
+- [x] Build document structure and formatting parser
 - [x] Added FIB version detection and encryption check
 - [x] Parse and extract headers, footers, and footnotes (basic implementation)
 - [ ] **Implement comprehensive SPRM (property modification) handling framework**

@@ -6,6 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a complete rewrite of the wvWare Word97 document parser in C#. The project aims to create a 100% managed codebase with no native dependencies for extracting text from Microsoft Word .doc files (Word 6.0/95/97 binary format).
 
+The code is based on /wvWare C code.
+
+
 ## Build and Test Commands
 
 ### Building the Project
@@ -95,6 +98,6 @@ dotnet run --project WvWareNetConsole -- <path-to-doc-file>
 ### Important Constraints
 
 - No P/Invoke or native code dependencies
-- Text extraction only (no layout, images, or embedded objects)
-- GPL licensed (see COPYING file)
-- Focus on text extraction accuracy over formatting preservation
+- Extracts complete document structure, formatting, and relationships (no layout, images, or embedded objects)
+- Focus on text extraction and document structure, formatting, and relationships
+- DO NOT HARDCODE solutions, it MUST work for any supported file, it is a generic tool. The response is in `wvWare` c files
