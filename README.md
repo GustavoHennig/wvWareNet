@@ -1,4 +1,4 @@
-# vwWare-toDotNet – *A Failed Attempt*
+# wvWareNet – *A Failed Attempt*
 
 > **Goal (2025):** Build a **pure C#** parser that extracts **plain text** from legacy Word `.doc` files—no native DLLs, no interop, just managed code.
 
