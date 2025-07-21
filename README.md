@@ -1,6 +1,17 @@
 # vwWare-toDotNet (TODO: rename me)
 
 
+
+>> New info to add to this document:
+>> This project isa frustrated  attempt to port/adapt doc parsers implementation from other languages to C#, basically the old `wvWare` project.
+>> The original idea was: Is current ai Agents good enough to to this job? The answar is : almost there.
+>> The AI was able to make a partially funcional parsers, Word6 was perfect, Word97 standard documnents pare well, the problem was with edge cases, fastsaved docs, and fileas out of the standart but still readable by the other parses.
+>> I gave up when I found b2xtranslator, an incomplete implementaiton that was well structured, algoutgh abandoned. And it only covert to docx, no text. I all had to do was to apply the learning of this project to that one, that was far more advance but with too much errors to run for all files. But for that scenario, the current AI agens were able to handle with the most important edge scenarios. Including fastsaved, and some corrupted files.
+>> In the end. This project was important to get knologe to make another project succeed, so please if you neet a doc to text parser for .net, go checkout github/gustavohennig/b2xtranlator
+
+
+
+
 This project is a complete, from-scratch write of a Word97 document parser based on `wvWare` in C#.
 
 - **No native code dependencies**
