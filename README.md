@@ -1,102 +1,116 @@
-# vwWare-toDotNet (TODO: rename me)
+# vwWare-toDotNet – *A Failed Attempt*
 
+> **Goal (2025):** Build a **pure C#** parser that extracts **plain text** from legacy Word `.doc` files—no native DLLs, no interop, just managed code.
 
+---
 
->> New info to add to this document:
->> This project isa frustrated  attempt to port/adapt doc parsers implementation from other languages to C#, basically the old `wvWare` project.
->> The original idea was: Is current ai Agents good enough to to this job? The answar is : almost there.
->> The AI was able to make a partially funcional parsers, Word6 was perfect, Word97 standard documnents pare well, the problem was with edge cases, fastsaved docs, and fileas out of the standart but still readable by the other parses.
->> I gave up when I found b2xtranslator, an incomplete implementaiton that was well structured, algoutgh abandoned. And it only covert to docx, no text. I all had to do was to apply the learning of this project to that one, that was far more advance but with too much errors to run for all files. But for that scenario, the current AI agens were able to handle with the most important edge scenarios. Including fastsaved, and some corrupted files.
->> In the end. This project was important to get knologe to make another project succeed, so please if you neet a doc to text parser for .net, go checkout github/gustavohennig/b2xtranlator
+## What on earth is this repo?
 
+This repository is my personal logbook of a **frustrated/failed attempt** to port the classic **wvWare** parser to modern .NET.
 
+I wanted to answer a burning question:
 
+> **“Can today’s AI agents manage the task of porting a legacy C codebase, including its tricky binary formats?”**
 
-This project is a complete, from-scratch write of a Word97 document parser based on `wvWare` in C#.
+### Short answer → *Almost.*
 
-- **No native code dependencies**
-- **No P/Invoke or interop**
-- **All logic implemented natively in C#**
+* Word 6 text extraction? **Perfect**  
+* Standard Word 97 docs? **Mostly fine**  
+* Fast-saved, corrupted, or otherwise “creative” docs? **Nope**—the AI-generated code collapsed under edge cases that the original C code handled just fine.
 
-See `PLAN.md` for the detailed rewrite roadmap and `PROGRESS.md` for current development updates.
+After weeks of patch-and-pray I pivoted:
 
-## Goals
+1. I discovered **[b2xtranslator](https://github.com/EvolutionJobs/b2xtranslator)**—an abandoned but *well-structured* C# codebase that converts `.doc` → `.docx` (no text extraction).  
+2. I poured the hard-won knowledge from **this** repo into **that** one.  
+3. With AI agents’ help on specific pain points (fast-saved streams, damaged piece tables, etc.), **b2xtranslator** was resurrected and now produces reliable plain text. 🎉
 
-- 100% managed codebase
-- Modern, maintainable, and idiomatic C#
-- Inspired by the core functionality of `wvWare`
-- Focus on extracting text, complete document structure, formatting, and relationships between elements
+> **Need a working DOC-to-text solution right now?**  
+> Check out **<https://github.com/gustavohennig/b2xtranslator>**.  
+> This repo remains online purely as a learning chronicle.
 
-## Scope
+---
 
-- **Input**: Microsoft Word `.doc` files (pre-2007 binary format)
-  - Word 6.0 (v6)
-  - Word 95 (v7)
-  - Word 97 (v8)
-- **Output**: Complete text, document structure, formatting, and relationships between elements
+## Why keep a failed attempt public?
+
+| Reason              | Detail                                                                                 |
+|---------------------|----------------------------------------------------------------------------------------|
+| **Historical value**| Shows where AI shines (boilerplate, repetitive structs) and where it stumbles (subtle state machines, excessive context windows, complex code) |
+| **Reference snippets** | Some routines are correct and may help other ports                                 |
+| **Storytelling**    | Failure, pivot, success—useful for anyone weighing AI pair-programming on binary formats |
+
+---
+
+## Original Scope
+
+- **Input**: Microsoft Word `.doc` files (pre-2007 binary format)  
+  - Word 6.0 (v6)  
+  - Word 95 (v7)  
+  - Word 97 (v8)  
+- **Output**: Complete text extraction, document structure metadata, formatting relationships  
 - No support for layout, images, annotations, or embedded objects
 
+---
 
-## Key Design Constraints
+## Current State of the Code
 
-- No P/Invoke
-- No external dependencies unless absolutely necessary
-- Built using .NET 9
-- Unit tests are not a priority during early stages
-- IMPORTANT: When changing the code, make sure the md files are properly updated.
+| Component                  | Status    |
+|----------------------------|-----------|
+| Word 6 parser              | **Stable**   |
+| Word 95 / 97 basic         | **Usable**   |
+| Header / Footer / TextBox  | **Usable**   |
+| Fast-saved documents       | **Unreliable** |
+| Word track changes         | **Poor**     |
+| Corruption handling        | **Poor**     |
+| Maintenance                | **Frozen** (see b2xtranslator for ongoing work) |
 
-### Compatibility
+---
 
-The parser attempts to read documents produced by Word 6, Word 95 and Word 97.
-Encrypted files are detected and will trigger a clear error message.
+## Design Constraints
 
+* 100 % managed C# (.NET 9)  
+* No P/Invoke or native DLLs  
+* Minimal external dependencies  
+* Readable first, performant later  
 
-## Reference Projects and Implementations
+---
 
-This project is inspired by and informed by several existing open-source implementations of the Word Binary Format:
+## Reference Projects that Guided Me
 
-| Name              | Language     | Description                                                              | Link                                                                  |
-|-------------------|--------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------|
-| **wvWare**        | C            | Original GPL Word97 `.doc` text extractor                                | [SourceForge](https://sourceforge.net/projects/wvware/)               |
-| **OnlyOffice**    | C++          | Proprietary editor with open-source core, includes DOC parsing           | [GitHub](https://github.com/ONLYOFFICE/core/tree/master/MsBinaryFile) |
-| **Antiword**      | C            | Lightweight Word `.doc` to text/postscript converter                     | [GitHub Mirror](https://github.com/grobian/antiword)                         |
-| **Apache POI**    | Java         | Java API for Microsoft Documents, includes Word97 support via HWPF       | [Apache POI - HWPF](https://poi.apache.org/hwpf/index.html)           |
-| **b2xtranslator** | C#           | Open XML SDK-based translator, also parses legacy binary formats         | [GitHub](https://github.com/EvolutionJobs/b2xtranslator)              |
-| **LibreOffice**   | C++          | Full office suite with robust support for legacy DOC files               | [GitHub](https://github.com/LibreOffice/core)                         |
-| **Catdoc**        | C            | Lightweight Word `.doc` to text converter                                | [GitHub Mirror](https://github.com/petewarden/catdoc)                        |
-| **DocToText**     | C++          | Lightweight any document file to text converter                          | [GitHub](https://github.com/tokgolich/doctotext)                      |
+| Name              | Language | Description                                                          | Link                                                                  |
+|-------------------|----------|----------------------------------------------------------------------|-----------------------------------------------------------------------|
+| **wvWare**        | C        | Original GPL Word97 `.doc` text extractor                            | [SourceForge](https://sourceforge.net/projects/wvware/)               |
+| **OnlyOffice**    | C++      | Proprietary editor with open-source core, includes DOC parsing       | [GitHub](https://github.com/ONLYOFFICE/core/tree/master/MsBinaryFile) |
+| **Antiword**      | C        | Lightweight Word `.doc` to text/postscript converter                 | [GitHub Mirror](https://github.com/grobian/antiword)                  |
+| **Apache POI**    | Java     | Java API for Microsoft Documents, includes Word97 support via HWPF   | [Apache POI - HWPF](https://poi.apache.org/hwpf/index.html)           |
+| **b2xtranslator** | C#       | Open XML SDK-based translator, also parses legacy binary formats     | [GitHub](https://github.com/EvolutionJobs/b2xtranslator)              |
+| **LibreOffice**   | C++      | Full office suite with robust support for legacy DOC files           | [GitHub](https://github.com/LibreOffice/core)                         |
+| **Catdoc**        | C        | Simple Word `.doc` to text converter                                 | [GitHub Mirror](https://github.com/petewarden/catdoc)                 |
+| **DocToText**     | C++      | Generic document-to-text converter                                   | [GitHub](https://github.com/tokgolich/doctotext)                      |
 
+---
 
+## Building & Running
 
+```bash
+dotnet restore
+dotnet run -- sample.doc
+```
 
-## Binary Format Specification
+---
 
-This implementation relies heavily on:
+## Binary Format Spec
 
-- **Microsoft Office Binary File Format Specification**  
-  Included as `MS-DOC-spec-compressed.pdf` in this repository.  
-  All rights to this document belong to Microsoft.
+The official **Microsoft Office Binary File Format Specification (MS-DOC)** PDF is included at `/docs/spec/MS-DOC-spec-compressed.pdf`.  
+All trademarks belong to Microsoft; redistributed here under the spec’s license terms.
 
+---
 
 ## License
 
-Licensed under the GNU GPL. See COPYING for details.
+GPL-2.0-only, identical to the original **wvWare**.
 
-## Running Tests
+---
 
-To run the tests for this project:
+## Author
 
-1. Restore dependencies:
-   ```
-   dotnet restore
-   ```
-
-2. Run the tests:
-   ```
-   dotnet test
-   ```
-
-3. Optionally, generate code coverage reports:
-   ```
-   dotnet test --collect:"XPlat Code Coverage"
-   ```
+Gustavo Augusto Hennig
